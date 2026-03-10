@@ -7,4 +7,6 @@ func main() {
 
 	println(git.BranchDefault())
 	println(git.BranchCurrent())
+
+	println(git.DiffWithDefault())
 }
