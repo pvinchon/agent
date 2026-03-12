@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	xlog "github.com/pvinchon/agent/internal/x/log"
+	xstrings "github.com/pvinchon/agent/internal/x/strings"
 )
 
 // Assistant is a generic interface for AI CLI assistants.
@@ -30,8 +31,7 @@ func Prompt(a Assistant, prompt string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	result := strings.TrimSpace(string(out))
-	slog.Debug("assistant", "response", len(result))
+	result := xstrings.StripMarkdownFence(strings.TrimSpace(buf.String()))
 	return result, nil
 }
 
