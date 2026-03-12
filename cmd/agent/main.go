@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/pvinchon/agent/internal/assistant"
+	"github.com/pvinchon/agent/internal/fixer"
 	"github.com/pvinchon/agent/internal/git"
 	"github.com/pvinchon/agent/internal/reviewer"
 )
@@ -57,6 +58,10 @@ func main() {
 		fmt.Printf("Description: %s\n", f.Description)
 		fmt.Printf("Location: %s\n", f.Location)
 		fmt.Printf("Severity: %s\n", f.Severity)
-		fmt.Println()
+			fmt.Println()
+	}
+
+	if err := fixer.Fix(issues, diff, a); err != nil {
+		log.Fatal(err)
 	}
 }
