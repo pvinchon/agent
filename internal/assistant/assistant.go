@@ -1,7 +1,9 @@
 package assistant
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"log/slog"
 	"maps"
 	"os"
@@ -9,6 +11,7 @@ import (
 	"slices"
 	"strings"
 
+	xio "github.com/pvinchon/agent/internal/x/io"
 	xlog "github.com/pvinchon/agent/internal/x/log"
 	xstrings "github.com/pvinchon/agent/internal/x/strings"
 )
@@ -23,12 +26,15 @@ func Prompt(a Assistant, prompt string) (string, error) {
 	slog.Debug("assistant", "prompt", prompt)
 
 	cmd := a.Command(prompt)
+
+	var buf bytes.Buffer
+	cmd.Stdout = &buf
 	if xlog.IsLevelDebug() {
 		cmd.Stderr = os.Stderr
+		cmd.Stdout = io.MultiWriter(&buf, xio.PrefixWriter(os.Stdout, "assistant> "))
 	}
 
-	out, err := cmd.Output()
-	if err != nil {
+	if err := cmd.Run(); err != nil {
 		return "", err
 	}
 	result := xstrings.StripMarkdownFence(strings.TrimSpace(buf.String()))
