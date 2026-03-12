@@ -35,7 +35,7 @@ func Prompt(a Assistant, prompt string) (string, error) {
 	}
 
 	if err := cmd.Run(); err != nil {
-		return "", err
+		return "", fmt.Errorf("assistant: %w", err)
 	}
 	result := xstrings.StripMarkdownFence(strings.TrimSpace(buf.String()))
 	return result, nil

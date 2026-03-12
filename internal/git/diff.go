@@ -18,7 +18,7 @@ func DiffWithDefault() (string, error) {
 		ref = def
 		out, err = exec.Command("git", "diff", ref+"...HEAD").Output()
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("git diff %s...HEAD: %w", ref, err)
 		}
 	}
 
