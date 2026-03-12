@@ -17,11 +17,6 @@ import (
 func main() {
 	println("Hello, World!")
 
-	println(git.BranchDefault())
-	println(git.BranchCurrent())
-
-	println(git.DiffWithDefault())
-
 	resolveLog := xlog.Flag()
 	resolveAssistant := assistant.Flag()
 	resolveReviewers := reviewer.Flag()
@@ -29,19 +24,7 @@ func main() {
 
 	slog.SetDefault(resolveLog())
 
-	a, err := resolveAssistant()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
-
-	joke, err := assistant.Prompt(a, "Tell me a joke.")
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println(joke)
-
-	diff, err := git.DiffWithDefault()
+	assistant, err := resolveAssistant()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -51,22 +34,22 @@ func main() {
 		log.Fatal(err)
 	}
 
-	issues, errs := reviewer.Review(reviewers, diff, a)
+	diff, err := git.DiffWithDefault()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	log.Println("Reviewing difference")
+	issues, errs := reviewer.Review(reviewers, diff, assistant)
 	if len(errs) != 0 {
 		for _, err := range errs {
 			fmt.Fprintln(os.Stderr, err)
 		}
 		os.Exit(1)
 	}
-	for _, f := range issues {
-		fmt.Printf("Issue: %s\n", f.Title)
-		fmt.Printf("Description: %s\n", f.Description)
-		fmt.Printf("Location: %s\n", f.Location)
-		fmt.Printf("Severity: %s\n", f.Severity)
-			fmt.Println()
-	}
 
-	if err := fixer.Fix(issues, diff, a); err != nil {
+	log.Println("Fixing issues")
+	if err := fixer.Fix(issues, diff, assistant); err != nil {
 		log.Fatal(err)
 	}
 }
