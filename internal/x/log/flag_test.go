@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func TestFlag(t *testing.T) {
+func TestFlagSet(t *testing.T) {
 	tests := []struct {
 		name        string
 		args        []string
@@ -21,12 +21,9 @@ func TestFlag(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			origCommandLine := flag.CommandLine
-			t.Cleanup(func() { flag.CommandLine = origCommandLine })
-
-			flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
-			resolve := Flag()
-			flag.CommandLine.Parse(tt.args)
+			fs := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+			resolve := FlagSet(fs)
+			fs.Parse(tt.args)
 			logger := resolve()
 
 			got := logger.Enabled(context.Background(), slog.LevelDebug)

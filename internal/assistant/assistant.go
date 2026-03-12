@@ -46,7 +46,7 @@ var assistantByName = map[string]Assistant{
 	"copilot": &Copilot{},
 }
 
-var assistantNames = strings.Join(slices.Collect(maps.Keys(assistantByName)), ", ")
+var assistantNames = strings.Join(slices.Sorted(maps.Keys(assistantByName)), ", ")
 
 // New returns the Assistant registered under name.
 func New(name string) (Assistant, error) {

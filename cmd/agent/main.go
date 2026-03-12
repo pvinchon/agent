@@ -3,53 +3,66 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
-	"log/slog"
 	"os"
-
-	"github.com/pvinchon/agent/internal/assistant"
-	"github.com/pvinchon/agent/internal/fixer"
-	"github.com/pvinchon/agent/internal/git"
-	"github.com/pvinchon/agent/internal/reviewer"
-	xlog "github.com/pvinchon/agent/internal/x/log"
 )
 
+func usage() {
+	fmt.Fprintf(os.Stderr, `usage: agent <command> [flags]
+
+Commands:
+  review  Run diff and review; outputs issues as JSON to stdout
+  fix     Read issues as JSON from stdin and apply fixes
+  loop    Run review and fix in a loop until no issues or max attempts
+  help    Show usage for a command
+
+`)
+}
+
 func main() {
-	println("Hello, World!")
-
-	resolveLog := xlog.Flag()
-	resolveAssistant := assistant.Flag()
-	resolveReviewers := reviewer.Flag()
-	flag.Parse()
-
-	slog.SetDefault(resolveLog())
-
-	assistant, err := resolveAssistant()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	reviewers, err := resolveReviewers()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	diff, err := git.DiffWithDefault()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	log.Println("Reviewing difference")
-	issues, errs := reviewer.Review(reviewers, diff, assistant)
-	if len(errs) != 0 {
-		for _, err := range errs {
-			fmt.Fprintln(os.Stderr, err)
-		}
+	if len(os.Args) < 2 {
+		usage()
 		os.Exit(1)
 	}
 
-	log.Println("Fixing issues")
-	if err := fixer.Fix(issues, diff, assistant); err != nil {
-		log.Fatal(err)
+	cmd, args := os.Args[1], os.Args[2:]
+
+	switch cmd {
+	case "review":
+		runReview(args, os.Stdout)
+	case "fix":
+		runFix(args, os.Stdin)
+	case "loop":
+		runLoop(args)
+	case "help":
+		runHelp(args)
+	default:
+		fmt.Fprintf(os.Stderr, "unknown command: %s\n\n", cmd)
+		usage()
+		os.Exit(1)
+	}
+}
+
+func runHelp(args []string) {
+	if len(args) == 0 {
+		usage()
+		return
+	}
+	switch args[0] {
+	case "review":
+		fs := flag.NewFlagSet("review", flag.ContinueOnError)
+		reviewFlags(fs)
+		reviewUsage(fs)
+	case "fix":
+		fs := flag.NewFlagSet("fix", flag.ContinueOnError)
+		fixFlags(fs)
+		fixUsage(fs)
+	case "loop":
+		fs := flag.NewFlagSet("loop", flag.ContinueOnError)
+		loopFlags(fs)
+		loopUsage(fs)
+	default:
+		fmt.Fprintf(os.Stderr, "unknown command: %s\n\n", args[0])
+		usage()
+		os.Exit(1)
 	}
 }

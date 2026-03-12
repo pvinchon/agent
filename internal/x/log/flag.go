@@ -6,12 +6,12 @@ import (
 	"os"
 )
 
-// Flag registers -v/--verbose flags and returns a function that builds the
-// appropriate logger after flag.Parse() has been called.
-func Flag() func() *slog.Logger {
+// FlagSet registers -v/--verbose flags on fs and returns a function that builds
+// the appropriate logger after fs.Parse() has been called.
+func FlagSet(fs *flag.FlagSet) func() *slog.Logger {
 	verbose := false
-	flag.BoolVar(&verbose, "verbose", false, "enable debug logging")
-	flag.BoolVar(&verbose, "v", false, "shorthand for --verbose")
+	fs.BoolVar(&verbose, "verbose", false, "enable debug logging")
+	fs.BoolVar(&verbose, "v", false, "shorthand for --verbose")
 
 	return func() *slog.Logger {
 		if verbose {
