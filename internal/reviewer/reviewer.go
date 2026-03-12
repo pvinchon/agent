@@ -4,10 +4,12 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
-	"github.com/pvinchon/agent/internal/assistant"
+	"log/slog"
 	"maps"
 	"slices"
 	"strings"
+
+	"github.com/pvinchon/agent/internal/assistant"
 )
 
 //go:embed data/prompt_template.md
@@ -74,8 +76,11 @@ func (r Reviewer) buildPrompt(diff string) string {
 
 // review runs this reviewer against diff and returns the parsed issues.
 func (r Reviewer) review(diff string, a assistant.Assistant) ([]Issue, error) {
-	p := r.buildPrompt(diff)
-	response, err := assistant.Prompt(a, p)
+	prompt := r.buildPrompt(diff)
+
+	slog.Debug("reviewer", "name", r.Name, "prompt", prompt)
+
+	response, err := assistant.Prompt(a, prompt)
 
 	if err != nil {
 		return nil, fmt.Errorf("reviewer %q: %w", r.Name, err)
@@ -83,7 +88,7 @@ func (r Reviewer) review(diff string, a assistant.Assistant) ([]Issue, error) {
 
 	var issues []Issue
 	if err := json.Unmarshal([]byte(response), &issues); err != nil {
-		println("raw response:", response)
+		slog.Debug("reviewer", "name", r.Name, "prompt", prompt, "response", response)
 		return nil, fmt.Errorf("reviewer %q: unmarshal issues: %w", r.Name, err)
 	}
 	for i := range issues {

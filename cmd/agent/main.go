@@ -4,12 +4,14 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
 
 	"github.com/pvinchon/agent/internal/assistant"
 	"github.com/pvinchon/agent/internal/fixer"
 	"github.com/pvinchon/agent/internal/git"
 	"github.com/pvinchon/agent/internal/reviewer"
+	xlog "github.com/pvinchon/agent/internal/x/log"
 )
 
 func main() {
@@ -20,9 +22,12 @@ func main() {
 
 	println(git.DiffWithDefault())
 
+	resolveLog := xlog.Flag()
 	resolveAssistant := assistant.Flag()
 	resolveReviewers := reviewer.Flag()
 	flag.Parse()
+
+	slog.SetDefault(resolveLog())
 
 	a, err := resolveAssistant()
 	if err != nil {

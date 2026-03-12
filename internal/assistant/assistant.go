@@ -2,10 +2,14 @@ package assistant
 
 import (
 	"fmt"
+	"log/slog"
 	"maps"
+	"os"
 	"os/exec"
 	"slices"
 	"strings"
+
+	xlog "github.com/pvinchon/agent/internal/x/log"
 )
 
 // Assistant is a generic interface for AI CLI assistants.
@@ -15,11 +19,20 @@ type Assistant interface {
 
 // Prompt runs the given prompt through the assistant and returns the trimmed output.
 func Prompt(a Assistant, prompt string) (string, error) {
-	out, err := a.Command(prompt).Output()
+	slog.Debug("assistant", "prompt", prompt)
+
+	cmd := a.Command(prompt)
+	if xlog.IsLevelDebug() {
+		cmd.Stderr = os.Stderr
+	}
+
+	out, err := cmd.Output()
 	if err != nil {
 		return "", err
 	}
-	return strings.TrimSpace(string(out)), nil
+	result := strings.TrimSpace(string(out))
+	slog.Debug("assistant", "response", len(result))
+	return result, nil
 }
 
 var assistantByName = map[string]Assistant{

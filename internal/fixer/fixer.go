@@ -3,10 +3,12 @@ package fixer
 import (
 	_ "embed"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/pvinchon/agent/internal/assistant"
 	"github.com/pvinchon/agent/internal/reviewer"
+	"github.com/pvinchon/agent/internal/x/ux"
 )
 
 //go:embed data/prompt_template.md
@@ -14,10 +16,18 @@ var promptTemplate string
 
 // Fix asks the assistant to fix all provided issues by editing files directly.
 func Fix(issues []reviewer.Issue, diff string, a assistant.Assistant) error {
+	defer ux.Spinner()()
 	prompt := buildPrompt(issues, diff)
-	if _, err := assistant.Prompt(a, prompt); err != nil {
+
+	slog.Debug("fixer", "prompt", prompt)
+
+	response, err := assistant.Prompt(a, prompt)
+	if err != nil {
 		return fmt.Errorf("fixer: %w", err)
 	}
+
+	slog.Debug("fixer", "prompt", prompt, "response", response)
+
 	return nil
 }
 
