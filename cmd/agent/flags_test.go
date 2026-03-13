@@ -26,6 +26,9 @@ func TestReviewFlags(t *testing.T) {
 	if fs.Lookup("assistant") == nil {
 		t.Error("expected --assistant flag to be registered")
 	}
+	if fs.Lookup("model") == nil {
+		t.Error("expected --model flag to be registered")
+	}
 	if fs.Lookup("verbose") == nil {
 		t.Error("expected --verbose flag to be registered")
 	}
@@ -47,6 +50,9 @@ func TestFixFlags(t *testing.T) {
 	}
 	if fs.Lookup("assistant") == nil {
 		t.Error("expected --assistant flag to be registered")
+	}
+	if fs.Lookup("model") == nil {
+		t.Error("expected --model flag to be registered")
 	}
 	if fs.Lookup("verbose") == nil {
 		t.Error("expected --verbose flag to be registered")
@@ -72,5 +78,8 @@ func TestLoopFlags(t *testing.T) {
 	}
 	if fs.Lookup("max-attempts") == nil {
 		t.Error("expected --max-attempts flag to be registered")
+	}
+	if fs.Lookup("model") == nil {
+		t.Error("expected --model flag to be registered")
 	}
 }

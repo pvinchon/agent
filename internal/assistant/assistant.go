@@ -41,18 +41,36 @@ func Prompt(a Assistant, prompt string) (string, error) {
 	return result, nil
 }
 
-var assistantByName = map[string]Assistant{
-	"claude":  &Claude{},
-	"copilot": &Copilot{},
+var validAssistants = map[string]bool{
+	"claude":  true,
+	"copilot": true,
 }
 
-var assistantNames = strings.Join(slices.Sorted(maps.Keys(assistantByName)), ", ")
+// modelsByAssistant lists the supported models for each assistant.
+// If the user provides no model, the assistant's own default is used.
+var modelsByAssistant = map[string][]string{
+	"claude":  {"claude-haiku-3-5", "claude-opus-4-5", "claude-sonnet-4-5"},
+	"copilot": {"claude-3.5-sonnet", "gemini-2.0-flash", "gpt-4-turbo", "gpt-4o", "o1", "o3-mini"},
+}
 
-// New returns the Assistant registered under name.
-func New(name string) (Assistant, error) {
-	a, ok := assistantByName[name]
-	if !ok {
+var assistantNames = strings.Join(slices.Sorted(maps.Keys(validAssistants)), ", ")
+
+// New returns the Assistant registered under name, optionally configured with model.
+func New(name, model string) (Assistant, error) {
+	if !validAssistants[name] {
 		return nil, fmt.Errorf("unknown assistant %q: choose %s", name, assistantNames)
 	}
-	return a, nil
+	if model != "" {
+		valid := modelsByAssistant[name]
+		if !slices.Contains(valid, model) {
+			return nil, fmt.Errorf("model %q is not available for assistant %q: choose %s",
+				model, name, strings.Join(valid, ", "))
+		}
+	}
+	switch name {
+	case "claude":
+		return &Claude{Model: model}, nil
+	default: // "copilot"
+		return &Copilot{Model: model}, nil
+	}
 }

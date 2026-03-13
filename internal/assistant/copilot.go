@@ -5,8 +5,15 @@ import (
 )
 
 // Copilot invokes the `copilot` CLI.
-type Copilot struct{}
+type Copilot struct {
+	Model string
+}
 
 func (c *Copilot) Command(prompt string) *exec.Cmd {
-	return exec.Command("copilot", "--silent", "--allow-all", "--autopilot", "--prompt", prompt)
+	args := []string{"--silent", "--allow-all", "--autopilot"}
+	if c.Model != "" {
+		args = append(args, "--model", c.Model)
+	}
+	args = append(args, "--prompt", prompt)
+	return exec.Command("copilot", args...)
 }

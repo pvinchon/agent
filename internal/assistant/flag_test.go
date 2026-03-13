@@ -33,3 +33,26 @@ func TestFlagSet_explicit(t *testing.T) {
 		t.Errorf("expected Copilot assistant, got %T", a)
 	}
 }
+
+func TestFlagSet_withModel(t *testing.T) {
+	fs := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+	mustAssistant := FlagSet(fs)
+	fs.Parse([]string{"--assistant=claude", "--model=claude-sonnet-4-5"})
+
+	a := mustAssistant()
+	c, ok := a.(*Claude)
+	if !ok {
+		t.Fatalf("expected *Claude, got %T", a)
+	}
+	if c.Model != "claude-sonnet-4-5" {
+		t.Errorf("expected Model=%q, got %q", "claude-sonnet-4-5", c.Model)
+	}
+}
+
+func TestFlagSet_modelRegistered(t *testing.T) {
+	fs := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+	FlagSet(fs)
+	if fs.Lookup("model") == nil {
+		t.Error("expected --model flag to be registered")
+	}
+}
