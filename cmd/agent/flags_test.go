@@ -55,14 +55,17 @@ func TestFixFlags(t *testing.T) {
 
 func TestLoopFlags(t *testing.T) {
 	fs := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
-	mustReviewers, mustAssistant, resolveLog, maxAttempts := loopFlags(fs)
-	fs.Parse([]string{"--reviewers=security", "--assistant=claude", "--max-attempts=3"})
+	mustReviewers, mustReviewAssistant, mustFixAssistant, resolveLog, maxAttempts := loopFlags(fs)
+	fs.Parse([]string{"--reviewers=security", "--review-assistant=claude", "--fix-assistant=copilot", "--max-attempts=3"})
 
 	if mustReviewers == nil {
 		t.Fatal("expected non-nil mustReviewers")
 	}
-	if mustAssistant == nil {
-		t.Fatal("expected non-nil mustAssistant")
+	if mustReviewAssistant == nil {
+		t.Fatal("expected non-nil mustReviewAssistant")
+	}
+	if mustFixAssistant == nil {
+		t.Fatal("expected non-nil mustFixAssistant")
 	}
 	if resolveLog == nil {
 		t.Fatal("expected non-nil resolveLog")
@@ -72,5 +75,14 @@ func TestLoopFlags(t *testing.T) {
 	}
 	if fs.Lookup("max-attempts") == nil {
 		t.Error("expected --max-attempts flag to be registered")
+	}
+	if fs.Lookup("review-assistant") == nil {
+		t.Error("expected --review-assistant flag to be registered")
+	}
+	if fs.Lookup("fix-assistant") == nil {
+		t.Error("expected --fix-assistant flag to be registered")
+	}
+	if fs.Lookup("assistant") != nil {
+		t.Error("--assistant should not be registered for loop")
 	}
 }
