@@ -1,3 +1,8 @@
+---
+name: CLI Design
+description: Reviews command-line interface issues that break user expectations or POSIX conventions
+scope: project
+---
 ## Focus: CLI Design
 
 Review the diff for command-line interface issues that **break user expectations or POSIX conventions**.

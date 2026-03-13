@@ -1,3 +1,8 @@
+---
+name: Go
+description: Reviews Go-specific bugs and convention violations
+scope: file
+---
 ## Focus: Go
 
 Review the diff for **Go-specific bugs and convention violations** based on Effective Go, the Go Code Review Comments wiki, and standard library patterns.

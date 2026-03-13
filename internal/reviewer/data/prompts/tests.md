@@ -1,3 +1,8 @@
+---
+name: Tests
+description: Reviews test quality issues that give false confidence or leave critical behaviour unverified
+scope: file
+---
 ## Focus: Tests
 
 Review the diff for **test quality issues** that give false confidence or leave critical behaviour unverified.

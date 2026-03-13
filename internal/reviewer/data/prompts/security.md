@@ -1,3 +1,8 @@
+---
+name: Security
+description: Reviews code for exploitable vulnerabilities
+scope: file
+---
 ## Focus: Security
 
 Review the diff for **exploitable vulnerabilities** — code an attacker could use to compromise confidentiality, integrity, or availability.
