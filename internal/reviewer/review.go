@@ -18,11 +18,13 @@ type Issue struct {
 }
 
 // Review runs all reviewers in parallel against the provided diff using the
-// given Assistant, and returns the aggregated issues.
-func Review(reviewers []Reviewer, diff string, a assistant.Assistant) ([]Issue, []error) {
+// given Assistant, and returns the aggregated issues. If reviewTemplate is
+// non-empty it is used as the scene-setting context; the output specification
+// is always appended from the built-in template.
+func Review(reviewers []Reviewer, diff, reviewTemplate string, a assistant.Assistant) ([]Issue, []error) {
 	defer ux.Spinner()()
 	groups, errs := sync.Parallel(reviewers, func(r Reviewer) ([]Issue, error) {
-		return r.review(diff, a)
+		return r.review(diff, reviewTemplate, a)
 	})
 	return slices.Concat(groups...), errs
 }

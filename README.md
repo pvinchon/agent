@@ -28,6 +28,12 @@ agent review --reviewers <list> --assistant <name>
 agent review --reviewers go,security --assistant claude | tee issues.json
 ```
 
+Optionally supply a custom review prompt template or additional reviewer prompts:
+
+```sh
+agent review --reviewers go,python --prompts-dir ./my-prompts --review-template ./my-template.md --assistant claude
+```
+
 ### `fix`
 
 Reads issues as JSON from stdin and applies fixes to the working tree.
@@ -38,6 +44,12 @@ agent fix --assistant <name> < issues.json
 
 ```sh
 agent fix --assistant copilot < issues.json
+```
+
+Optionally supply a custom fix prompt template:
+
+```sh
+agent fix --fix-template ./my-fix-template.md --assistant claude < issues.json
 ```
 
 ### `loop`
@@ -68,6 +80,9 @@ agent help <command>
 | `--assistant` | all | *(required)* | AI assistant to use |
 | `--max-attempts` | `loop` | `5` | Maximum number of fix attempts |
 | `--verbose` | all | `false` | Enable debug logging |
+| `--review-template` | `review`, `loop` | *(built-in)* | Path to a custom review prompt template file |
+| `--prompts-dir` | `review`, `loop` | *(built-in)* | Directory containing custom reviewer prompt files (`.md`) |
+| `--fix-template` | `fix`, `loop` | *(built-in)* | Path to a custom fix prompt template file |
 
 ## Reviewers
 
@@ -87,6 +102,66 @@ Combine multiple reviewers with commas:
 
 ```sh
 agent review --reviewers go,security,tests --assistant claude
+```
+
+## Custom prompts
+
+### Review prompt template (`--review-template`)
+
+Supply a Markdown file as a replacement for the built-in scene-setting context. The file must contain the `{{prompt}}` and `{{diff}}` placeholders. The JSON output specification is **always appended automatically** — you do not need to include it in your template.
+
+Example `my-review-template.md`:
+
+```markdown
+You are a strict reviewer. Focus only on correctness.
+
+## Focus
+
+{{prompt}}
+
+## Code
+
+{{diff}}
+```
+
+```sh
+agent review --reviewers security --review-template ./my-review-template.md --assistant claude
+```
+
+### Custom reviewer prompts (`--prompts-dir`)
+
+Point to a directory containing `.md` files. Each file name (without the extension) becomes a reviewer name. Custom prompts override built-in reviewers with the same name and can introduce entirely new reviewer types.
+
+```
+my-prompts/
+  python.md      # new reviewer: "python"
+  security.md    # overrides the built-in "security" reviewer
+```
+
+```sh
+agent review --reviewers security,python --prompts-dir ./my-prompts --assistant claude
+```
+
+### Fix prompt template (`--fix-template`)
+
+Supply a Markdown file as a replacement for the built-in fix prompt. The file must contain the `{{issues}}` and `{{diff}}` placeholders.
+
+Example `my-fix-template.md`:
+
+```markdown
+Fix the following issues in the code.
+
+## Issues
+
+{{issues}}
+
+## Diff
+
+{{diff}}
+```
+
+```sh
+agent fix --fix-template ./my-fix-template.md --assistant claude < issues.json
 ```
 
 ## Assistants
