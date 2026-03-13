@@ -49,8 +49,8 @@ var validAssistants = map[string]bool{
 // modelsByAssistant lists the supported models for each assistant.
 // If the user provides no model, the assistant's own default is used.
 var modelsByAssistant = map[string][]string{
-	"claude":  {"claude-haiku-3-5", "claude-opus-4-5", "claude-sonnet-4-5"},
-	"copilot": {"claude-3.5-sonnet", "gemini-2.0-flash", "gpt-4-turbo", "gpt-4o", "o1", "o3-mini"},
+	"claude":  claudeModels,
+	"copilot": copilotModels,
 }
 
 var assistantNames = strings.Join(slices.Sorted(maps.Keys(validAssistants)), ", ")
