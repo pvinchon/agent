@@ -1,3 +1,8 @@
+---
+name: Duplication
+description: Reviews repeated logic that will diverge over time
+scope: project
+---
 ## Focus: Duplication
 
 Review the diff for **repeated logic that will diverge over time**, creating bugs when one copy is updated and the other is not.

@@ -1,3 +1,8 @@
+---
+name: Architecture
+description: Reviews structural decisions that will be costly to fix later
+scope: project
+---
 ## Focus: Architecture
 
 Review the diff for structural decisions that will be **costly to fix later**.
