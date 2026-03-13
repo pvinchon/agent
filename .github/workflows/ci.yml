@@ -4,16 +4,20 @@ on:
   push:
   pull_request:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   ci:
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6.0.2
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6.3.0
         with:
           go-version-file: go.mod
 
@@ -26,7 +30,9 @@ jobs:
         run: go vet ./...
 
       - name: Fmt
-        run: test -z "$(gofmt -l .)"
+        run: |
+          go fmt ./...
+          git diff --exit-code
 
       - name: Test
         run: go test -race ./...
