@@ -105,4 +105,16 @@ func init() {
 	for _, key := range []string{"GIT_DIR", "GIT_WORK_TREE"} {
 		os.Unsetenv(key)
 	}
+	// Provide a fallback git identity so git commit works in environments
+	// where user.name/user.email are not configured (e.g. fresh CI runners).
+	for k, v := range map[string]string{
+		"GIT_AUTHOR_NAME":     "Test",
+		"GIT_AUTHOR_EMAIL":    "test@example.com",
+		"GIT_COMMITTER_NAME":  "Test",
+		"GIT_COMMITTER_EMAIL": "test@example.com",
+	} {
+		if os.Getenv(k) == "" {
+			os.Setenv(k, v)
+		}
+	}
 }

@@ -11,12 +11,11 @@ import (
 func FlagSet(fs *flag.FlagSet) func() Assistant {
 	name := fs.String("assistant", "", "AI assistant to use: "+assistantNames)
 	return func() Assistant {
-		if *name == "" {
-			fs.Usage()
-			fmt.Fprintln(os.Stderr, "error: --assistant is required")
-			os.Exit(2)
+		n := *name
+		if n == "" {
+			n = "claude"
 		}
-		a, err := New(*name)
+		a, err := New(n)
 		if err != nil {
 			fs.Usage()
 			fmt.Fprintln(os.Stderr, "error:", err)
