@@ -16,6 +16,11 @@ import (
 	xstrings "github.com/pvinchon/agent/internal/x/strings"
 )
 
+var assistantByName = map[string]func(string) Assistant{
+	"claude":  func(model string) Assistant { return &Claude{Model: model} },
+	"copilot": func(model string) Assistant { return &Copilot{Model: model} },
+}
+
 // Assistant is a generic interface for AI CLI assistants.
 type Assistant interface {
 	Command(prompt string) *exec.Cmd
@@ -41,18 +46,13 @@ func Prompt(a Assistant, prompt string) (string, error) {
 	return result, nil
 }
 
-var assistantByName = map[string]Assistant{
-	"claude":  &Claude{},
-	"copilot": &Copilot{},
-}
-
 var assistantNames = strings.Join(slices.Sorted(maps.Keys(assistantByName)), ", ")
 
-// New returns the Assistant registered under name.
-func New(name string) (Assistant, error) {
-	a, ok := assistantByName[name]
+// New returns the Assistant registered under name, optionally configured with model.
+func New(name, model string) (Assistant, error) {
+	factory, ok := assistantByName[name]
 	if !ok {
 		return nil, fmt.Errorf("unknown assistant %q: choose %s", name, assistantNames)
 	}
-	return a, nil
+	return factory(model), nil
 }
