@@ -52,13 +52,6 @@ func TestNew_ValidModel(t *testing.T) {
 	}
 }
 
-func TestNew_InvalidModelForAssistant(t *testing.T) {
-	_, err := New("claude", "gpt-4o")
-	if err == nil {
-		t.Error("New(\"claude\", \"gpt-4o\") expected error for incompatible model, got nil")
-	}
-}
-
 func TestNew_ValidModelCopilot(t *testing.T) {
 	a, err := New("copilot", "gpt-4o")
 	if err != nil {

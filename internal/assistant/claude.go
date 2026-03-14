@@ -4,9 +4,6 @@ import (
 	"os/exec"
 )
 
-// claudeModels lists the models supported by the Claude assistant.
-var claudeModels = []string{"claude-haiku-3-5", "claude-opus-4-5", "claude-sonnet-4-5"}
-
 // Claude invokes the `claude` CLI.
 type Claude struct {
 	Model string
