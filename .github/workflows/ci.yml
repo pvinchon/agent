@@ -1,0 +1,40 @@
+name: ci
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6.0.2
+
+      - name: Set up Go
+        uses: actions/setup-go@v6.3.0
+        with:
+          go-version-file: go.mod
+
+      - name: Tidy
+        run: |
+          go mod tidy
+          git diff --exit-code go.mod go.sum
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Fmt
+        run: |
+          go fmt ./...
+          git diff --exit-code
+
+      - name: Test
+        run: go test -race ./...

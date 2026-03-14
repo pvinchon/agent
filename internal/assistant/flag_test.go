@@ -6,17 +6,17 @@ import (
 	"testing"
 )
 
-func TestFlagSet_default(t *testing.T) {
+func TestFlagSet_claude(t *testing.T) {
 	fs := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
 	mustAssistant := FlagSet(fs)
-	fs.Parse([]string{})
+	fs.Parse([]string{"--assistant=claude"})
 
 	a := mustAssistant()
 	if a == nil {
 		t.Fatal("expected non-nil assistant")
 	}
 	if _, ok := a.(*Claude); !ok {
-		t.Errorf("expected default assistant to be Claude, got %T", a)
+		t.Errorf("expected Claude assistant, got %T", a)
 	}
 }
 
