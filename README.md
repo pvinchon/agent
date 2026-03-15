@@ -45,11 +45,11 @@ agent fix --assistant copilot < issues.json
 Runs review and fix in a loop until no issues remain or the maximum number of attempts is reached.
 
 ```sh
-agent loop --reviewers <list> --assistant <name> [--max-attempts <n>]
+agent loop --reviewers <list> --review-assistant <name> --fix-assistant <name> [--max-attempts <n>]
 ```
 
 ```sh
-agent loop --reviewers go,security,tests --assistant claude --max-attempts 3
+agent loop --reviewers go,security,tests --review-assistant claude --fix-assistant copilot --max-attempts 3
 ```
 
 ### `help`
@@ -65,7 +65,9 @@ agent help <command>
 | Flag | Commands | Default | Description |
 |------|----------|---------|-------------|
 | `--reviewers` | `review`, `loop` | *(required)* | Comma-separated list of reviewers |
-| `--assistant` | all | *(required)* | AI assistant to use |
+| `--assistant` | `review`, `fix` | *(required)* | AI assistant to use |
+| `--review-assistant` | `loop` | *(required)* | AI assistant to use for reviewing |
+| `--fix-assistant` | `loop` | *(required)* | AI assistant to use for fixing |
 | `--max-attempts` | `loop` | `5` | Maximum number of fix attempts |
 | `--verbose` | all | `false` | Enable debug logging |
 
