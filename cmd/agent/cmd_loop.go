@@ -26,7 +26,7 @@ Flags:
 
 func loopFlags(fs *flag.FlagSet) (mustReviewers func() []reviewer.Reviewer, mustReviewAssistant func() assistant.Assistant, mustFixAssistant func() assistant.Assistant, resolveLog func() *slog.Logger, maxAttempts *int) {
 	maxAttempts = fs.Int("max-attempts", 5, "maximum number of fix attempts")
-	return reviewer.FlagSet(fs), assistant.NamedFlagSet(fs, "review-assistant"), assistant.NamedFlagSet(fs, "fix-assistant"), xlog.FlagSet(fs), maxAttempts
+	return reviewer.FlagSet(fs), assistant.FlagSet(fs, "review"), assistant.FlagSet(fs, "fix"), xlog.FlagSet(fs), maxAttempts
 }
 
 func runLoop(args []string) {

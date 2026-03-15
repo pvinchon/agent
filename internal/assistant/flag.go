@@ -8,13 +8,13 @@ import (
 
 // FlagSet registers an --assistant flag on fs and returns a function that
 // resolves the chosen Assistant after fs.Parse() has been called.
-func FlagSet(fs *flag.FlagSet) func() Assistant {
-	return NamedFlagSet(fs, "assistant")
-}
-
-// NamedFlagSet registers a flag with the given flagName on fs and returns a
-// function that resolves the chosen Assistant after fs.Parse() has been called.
-func NamedFlagSet(fs *flag.FlagSet, flagName string) func() Assistant {
+// An optional prefix (e.g. "review" or "fix") produces a flag named
+// --<prefix>-assistant instead of --assistant.
+func FlagSet(fs *flag.FlagSet, prefix string) func() Assistant {
+	flagName := "assistant"
+	if prefix != "" {
+		flagName = prefix + "-assistant"
+	}
 	name := fs.String(flagName, "", "AI assistant to use: "+assistantNames)
 	return func() Assistant {
 		if *name == "" {
