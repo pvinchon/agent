@@ -22,7 +22,7 @@ func TestFlagSet_claude(t *testing.T) {
 
 func TestFlagSet_explicit(t *testing.T) {
 	fs := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
-	mustAssistant := FlagSet(fs)
+	mustAssistant := FlagSet(fs, "")
 	fs.Parse([]string{"--assistant=copilot"})
 
 	a := mustAssistant()

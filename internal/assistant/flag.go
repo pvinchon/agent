@@ -8,12 +8,12 @@ import (
 
 // FlagSet registers an --assistant flag on fs and returns a function that
 // resolves the chosen Assistant after fs.Parse() has been called.
-// An optional suffix (e.g. "review" or "fix") produces a flag named
+// A non-empty suffix (e.g. "review" or "fix") produces a flag named
 // --assistant-for-<suffix> instead of --assistant.
-func FlagSet(fs *flag.FlagSet, suffix ...string) func() Assistant {
+func FlagSet(fs *flag.FlagSet, suffix string) func() Assistant {
 	flagName := "assistant"
-	if len(suffix) > 0 && suffix[0] != "" {
-		flagName = "assistant-for-" + suffix[0]
+	if suffix != "" {
+		flagName = "assistant-for-" + suffix
 	}
 	name := fs.String(flagName, "", "AI assistant to use: "+assistantNames)
 	return func() Assistant {
