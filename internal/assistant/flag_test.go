@@ -6,21 +6,23 @@ import (
 	"testing"
 )
 
-func TestFlagSet_assistantRequired(t *testing.T) {
+func TestFlagSet_claude(t *testing.T) {
 	fs := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
-	FlagSet(fs)
-	f := fs.Lookup("assistant")
-	if f == nil {
-		t.Fatal("expected --assistant flag to be registered")
+	mustAssistant := FlagSet(fs, "")
+	fs.Parse([]string{"--assistant=claude"})
+
+	a := mustAssistant()
+	if a == nil {
+		t.Fatal("expected non-nil assistant")
 	}
-	if f.DefValue != "" {
-		t.Errorf("expected --assistant to have no default value, got %q", f.DefValue)
+	if _, ok := a.(*Claude); !ok {
+		t.Errorf("expected Claude assistant, got %T", a)
 	}
 }
 
 func TestFlagSet_explicit(t *testing.T) {
 	fs := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
-	mustAssistant := FlagSet(fs)
+	mustAssistant := FlagSet(fs, "")
 	fs.Parse([]string{"--assistant=copilot"})
 
 	a := mustAssistant()
@@ -34,7 +36,7 @@ func TestFlagSet_explicit(t *testing.T) {
 
 func TestFlagSet_withModel(t *testing.T) {
 	fs := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
-	mustAssistant := FlagSet(fs)
+	mustAssistant := FlagSet(fs, "")
 	fs.Parse([]string{"--assistant=claude", "--model=claude-sonnet-4-5"})
 
 	a := mustAssistant()
@@ -47,10 +49,24 @@ func TestFlagSet_withModel(t *testing.T) {
 	}
 }
 
-func TestFlagSet_modelRegistered(t *testing.T) {
+func TestFlagSet_suffix(t *testing.T) {
 	fs := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
-	FlagSet(fs)
-	if fs.Lookup("model") == nil {
-		t.Error("expected --model flag to be registered")
+	FlagSet(fs, "review")
+	FlagSet(fs, "fix")
+
+	if fs.Lookup("assistant-for-review") == nil {
+		t.Error("expected --assistant-for-review flag to be registered")
+	}
+	if fs.Lookup("model-for-review") == nil {
+		t.Error("expected --model-for-review flag to be registered")
+	}
+	if fs.Lookup("assistant-for-fix") == nil {
+		t.Error("expected --assistant-for-fix flag to be registered")
+	}
+	if fs.Lookup("model-for-fix") == nil {
+		t.Error("expected --model-for-fix flag to be registered")
+	}
+	if fs.Lookup("assistant") != nil {
+		t.Error("--assistant should not be registered when a suffix is given")
 	}
 }

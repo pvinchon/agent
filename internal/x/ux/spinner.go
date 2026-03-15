@@ -16,7 +16,9 @@ func Spinner() func() {
 		return func() {}
 	}
 	done := make(chan struct{})
+	stopped := make(chan struct{})
 	go func() {
+		defer close(stopped)
 		frames := []string{"|", "/", "-", "\\"}
 		i := 0
 		for {
@@ -30,5 +32,8 @@ func Spinner() func() {
 			}
 		}
 	}()
-	return func() { close(done) }
+	return func() {
+		close(done)
+		<-stopped
+	}
 }
