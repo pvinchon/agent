@@ -6,17 +6,15 @@ import (
 	"testing"
 )
 
-func TestFlagSet_default(t *testing.T) {
+func TestFlagSet_assistantRequired(t *testing.T) {
 	fs := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
-	mustAssistant := FlagSet(fs)
-	fs.Parse([]string{})
-
-	a := mustAssistant()
-	if a == nil {
-		t.Fatal("expected non-nil assistant")
+	FlagSet(fs)
+	f := fs.Lookup("assistant")
+	if f == nil {
+		t.Fatal("expected --assistant flag to be registered")
 	}
-	if _, ok := a.(*Claude); !ok {
-		t.Errorf("expected default assistant to be Claude, got %T", a)
+	if f.DefValue != "" {
+		t.Errorf("expected --assistant to have no default value, got %q", f.DefValue)
 	}
 }
 
