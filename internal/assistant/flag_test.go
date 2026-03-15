@@ -34,7 +34,7 @@ func TestFlagSet_explicit(t *testing.T) {
 	}
 }
 
-func TestFlagSet_prefix(t *testing.T) {
+func TestFlagSet_suffix(t *testing.T) {
 	fs := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
 	FlagSet(fs, "review")
 	FlagSet(fs, "fix")
@@ -46,6 +46,6 @@ func TestFlagSet_prefix(t *testing.T) {
 		t.Error("expected --assistant-for-fix flag to be registered")
 	}
 	if fs.Lookup("assistant") != nil {
-		t.Error("--assistant should not be registered when a prefix is given")
+		t.Error("--assistant should not be registered when a suffix is given")
 	}
 }
