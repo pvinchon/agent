@@ -47,15 +47,30 @@ internal/
 
 ## Architecture
 
+### Reviewers
+
+Each reviewer is an embedded Markdown file under `internal/reviewer/data/prompts/`. The filename (without `.md`) is the reviewer name.
+
+| Name | Focus |
+|------|-------|
+| `architecture` | Structural and design concerns |
+| `cli` | CLI interface and flag usage |
+| `docs` | Documentation drift — `CLAUDE.md` out of sync with the code |
+| `duplication` | Repeated or redundant code |
+| `go` | Go idioms and best practices |
+| `security` | Security vulnerabilities |
+| `tests` | Test coverage and quality |
+| `unused` | Dead code and unused declarations |
+
+Run any combination with `--reviewers`:
+
+```sh
+agent review --reviewers go,security,docs --assistant claude
+```
+
 ### Adding a New Reviewer
 
-Reviewers are loaded automatically from embedded Markdown files. To add one, create a new file:
-
-```
-internal/reviewer/data/prompts/<name>.md
-```
-
-The file content becomes the `Focus` section of the review prompt. No Go code changes are needed. The reviewer name is the filename without `.md`. See existing files for the prompt format.
+Create a Markdown file at `internal/reviewer/data/prompts/<name>.md`. It is automatically embedded and registered — no Go code changes are needed. The reviewer name is the filename without `.md`. See existing files for the prompt format.
 
 ### Adding a New AI Assistant
 
