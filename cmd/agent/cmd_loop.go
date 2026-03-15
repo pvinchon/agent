@@ -24,27 +24,28 @@ Flags:
 	fs.PrintDefaults()
 }
 
-func loopFlags(fs *flag.FlagSet) (mustReviewers func() []reviewer.Reviewer, mustAssistant func() assistant.Assistant, resolveLog func() *slog.Logger, maxAttempts *int) {
+func loopFlags(fs *flag.FlagSet) (mustReviewers func() []reviewer.Reviewer, mustReviewAssistant func() assistant.Assistant, mustFixAssistant func() assistant.Assistant, resolveLog func() *slog.Logger, maxAttempts *int) {
 	maxAttempts = fs.Int("max-attempts", 5, "maximum number of fix attempts")
-	return reviewer.FlagSet(fs), assistant.FlagSet(fs), xlog.FlagSet(fs), maxAttempts
+	return reviewer.FlagSet(fs), assistant.FlagSet(fs, "review"), assistant.FlagSet(fs, "fix"), xlog.FlagSet(fs), maxAttempts
 }
 
 func runLoop(args []string) {
 	fs := flag.NewFlagSet("loop", flag.ExitOnError)
 	fs.Usage = func() { loopUsage(fs) }
-	mustReviewers, mustAssistant, resolveLog, maxAttempts := loopFlags(fs)
+	mustReviewers, mustReviewAssistant, mustFixAssistant, resolveLog, maxAttempts := loopFlags(fs)
 	fs.Parse(args)
 
 	slog.SetDefault(resolveLog())
 
 	reviewers := mustReviewers()
-	a := mustAssistant()
+	ra := mustReviewAssistant()
+	fa := mustFixAssistant()
 
 	for attempt := 1; attempt <= *maxAttempts; attempt++ {
 		fmt.Printf("Attempt %d/%d\n", attempt, *maxAttempts)
 
 		var buf bytes.Buffer
-		review(reviewers, a, &buf)
+		review(reviewers, ra, &buf)
 
 		var issues []reviewer.Issue
 		if err := json.NewDecoder(bytes.NewReader(buf.Bytes())).Decode(&issues); err != nil {
@@ -57,7 +58,7 @@ func runLoop(args []string) {
 		}
 
 		log.Printf("Fixing %d issue(s)", len(issues))
-		fix(a, &buf)
+		fix(fa, &buf)
 	}
 
 	fmt.Printf("Reached max attempts (%d)\n", *maxAttempts)
