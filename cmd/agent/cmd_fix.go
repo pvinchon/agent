@@ -27,7 +27,7 @@ Flags:
 }
 
 func fixFlags(fs *flag.FlagSet) (mustAssistant func() assistant.Assistant, resolveLog func() *slog.Logger) {
-	return assistant.FlagSet(fs, ""), xlog.FlagSet(fs)
+	return assistant.FlagSet(fs), xlog.FlagSet(fs)
 }
 
 func runFix(args []string, r io.Reader) {

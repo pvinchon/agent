@@ -26,7 +26,7 @@ Flags:
 }
 
 func reviewFlags(fs *flag.FlagSet) (mustReviewers func() []reviewer.Reviewer, mustAssistant func() assistant.Assistant, resolveLog func() *slog.Logger) {
-	return reviewer.FlagSet(fs), assistant.FlagSet(fs, ""), xlog.FlagSet(fs)
+	return reviewer.FlagSet(fs), assistant.FlagSet(fs), xlog.FlagSet(fs)
 }
 
 func runReview(args []string, w io.Writer) {
