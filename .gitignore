@@ -1,32 +1,23 @@
-# Created by https://www.toptal.com/developers/gitignore/api/go
-# Edit at https://www.toptal.com/developers/gitignore?templates=go
+# Allowlisting gitignore template for GO projects prevents us
+# from adding various unwanted local files, such as generated
+# files, developer configurations or IDE-specific files etc.
+#
+# Source: https://github.com/github/gitignore/blob/main/community/Golang/Go.AllowList.gitignore
 
-### Go ###
-# If you prefer the allow list template instead of the deny-list, see community template:
-# https://github.com/github/gitignore/blob/main/community/Golang/Go.AllowList.gitignore
-# Binaries for programs and plugins
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
+# Ignore everything
+*
 
-# Test binary, built with `go test -c`
-*.test
+# But not these files...
+!/.gitignore
 
-# Output of the go coverage tool, specifically when used with LiteIDE
-*.out
+!*.go
+!go.sum
+!go.mod
 
-# Go workspace file
-go.work
-go.work.sum
+!README.md
+!LICENSE
 
-# env file
-.env
+# !Makefile
 
-### Go Patch ###
-/vendor/
-/Godeps/
-
-# Generated binary
-agent
+# ...even if they are in subdirectories
+!*/
