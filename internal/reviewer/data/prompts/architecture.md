@@ -1,7 +1,7 @@
 ---
 name: Architecture
 description: Reviews code for structural decisions that will be costly to fix later
-scope: folder
+scope: all
 ---
 
 ## Focus: Architecture
