@@ -3,6 +3,7 @@ package assistant
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 )
 
@@ -79,5 +80,41 @@ func TestPrompt_CommandNotFound(t *testing.T) {
 	_, err := Prompt(&Claude{}, "test input")
 	if err == nil {
 		t.Error("Prompt() expected error when binary not in PATH, got nil")
+	}
+}
+
+func TestClaudeCommand_noModel(t *testing.T) {
+	c := &Claude{}
+	cmd := c.Command("test prompt")
+	want := []string{"claude", "--dangerously-skip-permissions", "--print", "test prompt"}
+	if !slices.Equal(cmd.Args, want) {
+		t.Errorf("Command() args = %v, want %v", cmd.Args, want)
+	}
+}
+
+func TestClaudeCommand_withModel(t *testing.T) {
+	c := &Claude{Model: "claude-opus"}
+	cmd := c.Command("test prompt")
+	want := []string{"claude", "--dangerously-skip-permissions", "--print", "--model", "claude-opus", "test prompt"}
+	if !slices.Equal(cmd.Args, want) {
+		t.Errorf("Command() args = %v, want %v", cmd.Args, want)
+	}
+}
+
+func TestCopilotCommand_noModel(t *testing.T) {
+	c := &Copilot{}
+	cmd := c.Command("test prompt")
+	want := []string{"copilot", "--silent", "--allow-all", "--autopilot", "--prompt", "test prompt"}
+	if !slices.Equal(cmd.Args, want) {
+		t.Errorf("Command() args = %v, want %v", cmd.Args, want)
+	}
+}
+
+func TestCopilotCommand_withModel(t *testing.T) {
+	c := &Copilot{Model: "gpt-4o"}
+	cmd := c.Command("test prompt")
+	want := []string{"copilot", "--silent", "--allow-all", "--autopilot", "--model", "gpt-4o", "--prompt", "test prompt"}
+	if !slices.Equal(cmd.Args, want) {
+		t.Errorf("Command() args = %v, want %v", cmd.Args, want)
 	}
 }
