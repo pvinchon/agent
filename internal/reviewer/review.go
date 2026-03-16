@@ -22,7 +22,7 @@ type Issue struct {
 func Review(reviewers []Reviewer, diff string, a assistant.Assistant) ([]Issue, []error) {
 	defer ux.Spinner()()
 	groups, errs := sync.Parallel(reviewers, func(r Reviewer) ([]Issue, error) {
-		return r.review(diff, a)
+		return r.reviewWithScope(diff, a)
 	})
 	return slices.Concat(groups...), errs
 }

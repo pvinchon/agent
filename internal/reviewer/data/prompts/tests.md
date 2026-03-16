@@ -1,3 +1,9 @@
+---
+name: Tests
+description: Reviews code for test quality issues and missing coverage
+scope: file
+---
+
 ## Focus: Tests
 
 Review the diff for **test quality issues** that give false confidence or leave critical behaviour unverified.

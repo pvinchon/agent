@@ -3,6 +3,7 @@ package reviewer
 import (
 	"embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"maps"
@@ -10,6 +11,8 @@ import (
 	"strings"
 
 	"github.com/pvinchon/agent/internal/assistant"
+	"github.com/pvinchon/agent/internal/git"
+	xsync "github.com/pvinchon/agent/internal/x/sync"
 )
 
 //go:embed data/prompt_template.md
@@ -18,10 +21,19 @@ var promptTemplate string
 //go:embed data/prompts
 var prompts embed.FS
 
+// Scope values control how the reviewer is applied to the diff.
+const (
+	ScopeAll    = "all"    // review all changes at once (default)
+	ScopeFolder = "folder" // review changes once per changed folder
+	ScopeFile   = "file"   // review changes once per changed file
+)
+
 // Reviewer focuses on a specific aspect of code quality, defined by its prompt.
 type Reviewer struct {
-	Name   string
-	Prompt string
+	Name        string
+	Description string
+	Scope       string
+	Prompt      string
 }
 
 var reviewersByName = func() map[string]Reviewer {
@@ -36,10 +48,48 @@ var reviewersByName = func() map[string]Reviewer {
 		if err != nil {
 			panic(err)
 		}
-		m[name] = Reviewer{Name: name, Prompt: string(data)}
+		meta, body := parseFrontmatter(string(data))
+		r := Reviewer{Name: name, Prompt: strings.TrimSpace(body)}
+		if desc, ok := meta["description"]; ok {
+			r.Description = desc
+		}
+		if scope, ok := meta["scope"]; ok {
+			r.Scope = scope
+		}
+		m[name] = r
 	}
 	return m
 }()
+
+// parseFrontmatter parses the YAML-like frontmatter block from the beginning of
+// content. The block must be delimited by "---" lines. It returns the parsed
+// key-value pairs and the remaining body.
+func parseFrontmatter(content string) (map[string]string, string) {
+	const delimiter = "---\n"
+	if !strings.HasPrefix(content, delimiter) {
+		return nil, content
+	}
+	rest := content[len(delimiter):]
+	end := strings.Index(rest, delimiter)
+	if end == -1 {
+		return nil, content
+	}
+	frontmatter := rest[:end]
+	body := rest[end+len(delimiter):]
+
+	meta := make(map[string]string)
+	for line := range strings.SplitSeq(frontmatter, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		key, value, ok := strings.Cut(line, ": ")
+		if ok {
+			meta[strings.TrimSpace(key)] = strings.TrimSpace(value)
+		}
+	}
+	return meta, body
+}
 
 var reviewerNames = strings.Join(slices.Sorted(maps.Keys(reviewersByName)), ", ")
 
@@ -95,4 +145,37 @@ func (r Reviewer) review(diff string, a assistant.Assistant) ([]Issue, error) {
 		issues[i].Reviewer = r.Name
 	}
 	return issues, nil
+}
+
+// reviewWithScope runs this reviewer against diff, splitting by file or folder
+// when the reviewer's Scope requests it.
+func (r Reviewer) reviewWithScope(diff string, a assistant.Assistant) ([]Issue, error) {
+	switch r.Scope {
+	case ScopeFile:
+		return r.reviewSegments(git.SplitByFile(diff), a)
+	case ScopeFolder:
+		return r.reviewSegments(git.SplitByFolder(diff), a)
+	default: // ScopeAll or unset
+		return r.review(diff, a)
+	}
+}
+
+// reviewSegments runs this reviewer in parallel against each diff segment and
+// aggregates the results. Errors from individual segments are joined.
+func (r Reviewer) reviewSegments(segments map[string]string, a assistant.Assistant) ([]Issue, error) {
+	type entry struct {
+		diff string
+	}
+	entries := make([]entry, 0, len(segments))
+	for _, d := range segments {
+		entries = append(entries, entry{d})
+	}
+
+	groups, errs := xsync.Parallel(entries, func(e entry) ([]Issue, error) {
+		return r.review(e.diff, a)
+	})
+	if len(errs) > 0 {
+		return nil, errors.Join(errs...)
+	}
+	return slices.Concat(groups...), nil
 }

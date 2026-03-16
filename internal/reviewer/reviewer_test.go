@@ -3,6 +3,7 @@ package reviewer
 import (
 	"os/exec"
 	"strings"
+	"sync/atomic"
 	"testing"
 )
 
@@ -129,8 +130,8 @@ func echoCmd(output string) *exec.Cmd { return exec.Command("echo", output) }
 func failCmd() *exec.Cmd              { return exec.Command("false") }
 
 func TestReview(t *testing.T) {
-	sec, _ := New("security")
-	tests, _ := New("tests")
+	sec := Reviewer{Name: "security", Scope: ScopeAll, Prompt: "check security"}
+	tests := Reviewer{Name: "tests", Scope: ScopeAll, Prompt: "check tests"}
 
 	a := &fakeAssistant{fn: func(string) *exec.Cmd {
 		return echoCmd(`[{"severity":"HIGH","title":"issue","location":"f.go:1","description":"bad"}]`)
@@ -154,7 +155,7 @@ func TestReview(t *testing.T) {
 }
 
 func TestReview_promptError(t *testing.T) {
-	sec, _ := New("security")
+	sec := Reviewer{Name: "security", Scope: ScopeAll, Prompt: "check security"}
 	a := &fakeAssistant{fn: func(string) *exec.Cmd { return failCmd() }}
 
 	issues, errs := Review([]Reviewer{sec}, "diff", a)
@@ -232,5 +233,157 @@ func TestResolve_whitespace(t *testing.T) {
 	}
 	if len(reviewers) != 2 {
 		t.Fatalf("got %d reviewers, want 2", len(reviewers))
+	}
+}
+
+func TestNewReviewer_metadata(t *testing.T) {
+	r, err := New("security")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if r.Description == "" {
+		t.Error("description should be set from frontmatter")
+	}
+	if r.Scope == "" {
+		t.Error("scope should be set from frontmatter")
+	}
+	if r.Scope != ScopeFile {
+		t.Errorf("got scope %q for security reviewer, want %q", r.Scope, ScopeFile)
+	}
+	// Prompt should not contain frontmatter markers
+	if strings.Contains(r.Prompt, "---") {
+		t.Error("prompt should not contain frontmatter delimiters")
+	}
+}
+
+func TestParseFrontmatter(t *testing.T) {
+	content := "---\nname: Test\ndescription: A test reviewer\nscope: file\n---\n\n## Body\n"
+	meta, body := parseFrontmatter(content)
+
+	if meta["name"] != "Test" {
+		t.Errorf("got name %q, want %q", meta["name"], "Test")
+	}
+	if meta["description"] != "A test reviewer" {
+		t.Errorf("got description %q, want %q", meta["description"], "A test reviewer")
+	}
+	if meta["scope"] != "file" {
+		t.Errorf("got scope %q, want %q", meta["scope"], "file")
+	}
+	if !strings.Contains(body, "## Body") {
+		t.Errorf("body should contain content after frontmatter, got: %q", body)
+	}
+	if strings.Contains(body, "---") {
+		t.Error("body should not contain frontmatter delimiters")
+	}
+}
+
+func TestParseFrontmatter_noFrontmatter(t *testing.T) {
+	content := "## Just a body\nno frontmatter here\n"
+	meta, body := parseFrontmatter(content)
+
+	if meta != nil {
+		t.Errorf("expected nil meta for content without frontmatter, got %v", meta)
+	}
+	if body != content {
+		t.Errorf("body should equal original content when no frontmatter, got %q", body)
+	}
+}
+
+func TestReviewWithScope_file(t *testing.T) {
+	r := Reviewer{Name: "sec", Scope: ScopeFile, Prompt: "check security"}
+	diff := `diff --git a/foo.go b/foo.go
+--- a/foo.go
++++ b/foo.go
+@@ -1 +1 @@
+-old
++new
+diff --git a/bar.go b/bar.go
+--- a/bar.go
++++ b/bar.go
+@@ -1 +1 @@
+-old
++new`
+
+	var promptCount atomic.Int32
+	a := &fakeAssistant{fn: func(string) *exec.Cmd {
+		promptCount.Add(1)
+		return echoCmd(`[{"severity":"LOW","title":"t","location":"f.go:1","description":"d"}]`)
+	}}
+
+	issues, err := r.reviewWithScope(diff, a)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := promptCount.Load(); got != 2 {
+		t.Errorf("expected 2 prompts for 2 files, got %d", got)
+	}
+	if len(issues) != 2 {
+		t.Errorf("expected 2 issues (one per file), got %d", len(issues))
+	}
+}
+
+func TestReviewWithScope_folder(t *testing.T) {
+	r := Reviewer{Name: "arch", Scope: ScopeFolder, Prompt: "check architecture"}
+	diff := `diff --git a/internal/foo/foo.go b/internal/foo/foo.go
+--- a/internal/foo/foo.go
++++ b/internal/foo/foo.go
+@@ -1 +1 @@
+-old
++new
+diff --git a/internal/bar/bar.go b/internal/bar/bar.go
+--- a/internal/bar/bar.go
++++ b/internal/bar/bar.go
+@@ -1 +1 @@
+-old
++new`
+
+	var promptCount atomic.Int32
+	a := &fakeAssistant{fn: func(string) *exec.Cmd {
+		promptCount.Add(1)
+		return echoCmd(`[]`)
+	}}
+
+	_, err := r.reviewWithScope(diff, a)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got := promptCount.Load(); got != 2 {
+		t.Errorf("expected 2 prompts for 2 folders, got %d", got)
+	}
+}
+
+func TestReviewWithScope_all(t *testing.T) {
+	r := Reviewer{Name: "dup", Scope: ScopeAll, Prompt: "check duplication"}
+
+	var promptCount int
+	a := &fakeAssistant{fn: func(string) *exec.Cmd {
+		promptCount++
+		return echoCmd(`[]`)
+	}}
+
+	_, err := r.reviewWithScope("some diff", a)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if promptCount != 1 {
+		t.Errorf("expected 1 prompt for scope=all, got %d", promptCount)
+	}
+}
+
+func TestReviewWithScope_defaultIsAll(t *testing.T) {
+	r := Reviewer{Name: "x", Prompt: "check stuff"} // Scope is zero value
+
+	var promptCount int
+	a := &fakeAssistant{fn: func(string) *exec.Cmd {
+		promptCount++
+		return echoCmd(`[]`)
+	}}
+
+	_, err := r.reviewWithScope("some diff", a)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if promptCount != 1 {
+		t.Errorf("expected 1 prompt when scope is unset, got %d", promptCount)
 	}
 }

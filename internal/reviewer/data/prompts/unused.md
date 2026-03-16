@@ -1,3 +1,9 @@
+---
+name: Unused Code
+description: Reviews code for dead code introduced or left behind
+scope: all
+---
+
 ## Focus: Unused Code
 
 Review the diff for **dead code introduced or left behind** that adds noise without serving any purpose.
