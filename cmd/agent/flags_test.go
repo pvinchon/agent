@@ -26,6 +26,9 @@ func TestReviewFlags(t *testing.T) {
 	if fs.Lookup("assistant") == nil {
 		t.Error("expected --assistant flag to be registered")
 	}
+	if fs.Lookup("model") == nil {
+		t.Error("expected --model flag to be registered")
+	}
 	if fs.Lookup("verbose") == nil {
 		t.Error("expected --verbose flag to be registered")
 	}
@@ -47,6 +50,9 @@ func TestFixFlags(t *testing.T) {
 	}
 	if fs.Lookup("assistant") == nil {
 		t.Error("expected --assistant flag to be registered")
+	}
+	if fs.Lookup("model") == nil {
+		t.Error("expected --model flag to be registered")
 	}
 	if fs.Lookup("verbose") == nil {
 		t.Error("expected --verbose flag to be registered")
@@ -81,6 +87,12 @@ func TestLoopFlags(t *testing.T) {
 	}
 	if fs.Lookup("assistant-for-fix") == nil {
 		t.Error("expected --assistant-for-fix flag to be registered")
+	}
+	if fs.Lookup("model-for-review") == nil {
+		t.Error("expected --model-for-review flag to be registered")
+	}
+	if fs.Lookup("model-for-fix") == nil {
+		t.Error("expected --model-for-fix flag to be registered")
 	}
 	if fs.Lookup("assistant") != nil {
 		t.Error("--assistant should not be registered for loop")

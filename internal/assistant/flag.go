@@ -6,23 +6,26 @@ import (
 	"os"
 )
 
-// FlagSet registers an --assistant flag on fs and returns a function that
-// resolves the chosen Assistant after fs.Parse() has been called.
-// A non-empty suffix (e.g. "review" or "fix") produces a flag named
-// --assistant-for-<suffix> instead of --assistant.
+// FlagSet registers --assistant and --model flags on fs and returns a function
+// that resolves the chosen Assistant after fs.Parse() has been called.
+// A non-empty suffix (e.g. "review" or "fix") produces flags named
+// --assistant-for-<suffix> and --model-for-<suffix> instead of --assistant/--model.
 func FlagSet(fs *flag.FlagSet, suffix string) func() Assistant {
-	flagName := "assistant"
+	assistantFlagName := "assistant"
+	modelFlagName := "model"
 	if suffix != "" {
-		flagName = "assistant-for-" + suffix
+		assistantFlagName = "assistant-for-" + suffix
+		modelFlagName = "model-for-" + suffix
 	}
-	name := fs.String(flagName, "", "AI assistant to use: "+assistantNames)
+	name := fs.String(assistantFlagName, "", "AI assistant to use: "+assistantNames)
+	model := fs.String(modelFlagName, "", "model to use for the assistant (leave empty for default)")
 	return func() Assistant {
 		if *name == "" {
 			fs.Usage()
-			fmt.Fprintf(os.Stderr, "error: --%s is required\n", flagName)
+			fmt.Fprintf(os.Stderr, "error: --%s is required\n", assistantFlagName)
 			os.Exit(2)
 		}
-		a, err := New(*name)
+		a, err := New(*name, *model)
 		if err != nil {
 			fs.Usage()
 			fmt.Fprintln(os.Stderr, "error:", err)

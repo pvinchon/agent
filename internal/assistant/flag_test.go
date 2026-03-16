@@ -49,3 +49,43 @@ func TestFlagSet_suffix(t *testing.T) {
 		t.Error("--assistant should not be registered when a suffix is given")
 	}
 }
+
+func TestFlagSet_modelFlag(t *testing.T) {
+	fs := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+	FlagSet(fs, "")
+
+	if fs.Lookup("model") == nil {
+		t.Error("expected --model flag to be registered")
+	}
+}
+
+func TestFlagSet_modelFlagWithSuffix(t *testing.T) {
+	fs := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+	FlagSet(fs, "review")
+	FlagSet(fs, "fix")
+
+	if fs.Lookup("model-for-review") == nil {
+		t.Error("expected --model-for-review flag to be registered")
+	}
+	if fs.Lookup("model-for-fix") == nil {
+		t.Error("expected --model-for-fix flag to be registered")
+	}
+	if fs.Lookup("model") != nil {
+		t.Error("--model should not be registered when a suffix is given")
+	}
+}
+
+func TestFlagSet_withValidModel(t *testing.T) {
+	fs := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+	mustAssistant := FlagSet(fs, "")
+	fs.Parse([]string{"--assistant=claude", "--model=claude-sonnet-4-5"})
+
+	a := mustAssistant()
+	c, ok := a.(*Claude)
+	if !ok {
+		t.Fatalf("expected *Claude, got %T", a)
+	}
+	if c.Model != "claude-sonnet-4-5" {
+		t.Errorf("Model = %q, want %q", c.Model, "claude-sonnet-4-5")
+	}
+}

@@ -41,18 +41,23 @@ func Prompt(a Assistant, prompt string) (string, error) {
 	return result, nil
 }
 
-var assistantByName = map[string]Assistant{
-	"claude":  &Claude{},
-	"copilot": &Copilot{},
+// assistantFactories maps each assistant name to a constructor that accepts an
+// optional model name (empty string = use the CLI's default model).
+var assistantFactories = map[string]func(model string) Assistant{
+	"claude":  func(model string) Assistant { return &Claude{Model: model} },
+	"copilot": func(model string) Assistant { return &Copilot{Model: model} },
 }
 
-var assistantNames = strings.Join(slices.Sorted(maps.Keys(assistantByName)), ", ")
+var assistantNames = strings.Join(slices.Sorted(maps.Keys(assistantFactories)), ", ")
 
-// New returns the Assistant registered under name.
-func New(name string) (Assistant, error) {
-	a, ok := assistantByName[name]
+// New returns an Assistant for the given name and optional model.
+// If model is empty, the assistant uses its CLI's default model.
+// Model names are not validated; if the model is unsupported the assistant
+// CLI will report an error when the command is run.
+func New(name, model string) (Assistant, error) {
+	factory, ok := assistantFactories[name]
 	if !ok {
 		return nil, fmt.Errorf("unknown assistant %q: choose %s", name, assistantNames)
 	}
-	return a, nil
+	return factory(model), nil
 }

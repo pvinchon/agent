@@ -21,7 +21,7 @@ Requires Go 1.26+.
 Runs the diff through the selected reviewers and prints issues as JSON to stdout.
 
 ```sh
-agent review --reviewers <list> --assistant <name>
+agent review --reviewers <list> --assistant <name> [--model <model>]
 ```
 
 ```sh
@@ -33,7 +33,7 @@ agent review --reviewers go,security --assistant claude | tee issues.json
 Reads issues as JSON from stdin and applies fixes to the working tree.
 
 ```sh
-agent fix --assistant <name> < issues.json
+agent fix --assistant <name> [--model <model>] < issues.json
 ```
 
 ```sh
@@ -45,7 +45,7 @@ agent fix --assistant copilot < issues.json
 Runs review and fix in a loop until no issues remain or the maximum number of attempts is reached.
 
 ```sh
-agent loop --reviewers <list> --assistant-for-review <name> --assistant-for-fix <name> [--max-attempts <n>]
+agent loop --reviewers <list> --assistant-for-review <name> --assistant-for-fix <name> [--model-for-review <model>] [--model-for-fix <model>] [--max-attempts <n>]
 ```
 
 ```sh
@@ -66,8 +66,11 @@ agent help <command>
 |------|----------|---------|-------------|
 | `--reviewers` | `review`, `loop` | *(required)* | Comma-separated list of reviewers |
 | `--assistant` | `review`, `fix` | *(required)* | AI assistant to use |
+| `--model` | `review`, `fix` | *(default model)* | Model to use for the assistant |
 | `--assistant-for-review` | `loop` | *(required)* | AI assistant to use for reviewing |
+| `--model-for-review` | `loop` | *(default model)* | Model to use for the review assistant |
 | `--assistant-for-fix` | `loop` | *(required)* | AI assistant to use for fixing |
+| `--model-for-fix` | `loop` | *(default model)* | Model to use for the fix assistant |
 | `--max-attempts` | `loop` | `5` | Maximum number of fix attempts |
 | `--verbose` | all | `false` | Enable debug logging |
 
