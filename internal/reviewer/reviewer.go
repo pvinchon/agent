@@ -152,9 +152,9 @@ func (r Reviewer) review(diff string, a assistant.Assistant) ([]Issue, error) {
 func (r Reviewer) reviewWithScope(diff string, a assistant.Assistant) ([]Issue, error) {
 	switch r.Scope {
 	case ScopeFile:
-		return r.reviewSegments(git.SplitByFile(diff), a)
+		return r.reviewSegments(git.SplitByFile(git.ParseDiff(diff)), a)
 	case ScopeFolder:
-		return r.reviewSegments(git.SplitByFolder(diff), a)
+		return r.reviewSegments(git.SplitByFolder(git.ParseDiff(diff)), a)
 	default: // ScopeAll or unset
 		return r.review(diff, a)
 	}

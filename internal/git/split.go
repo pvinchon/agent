@@ -5,33 +5,43 @@ import (
 	"strings"
 )
 
-// SplitByFile splits a git diff string into per-file diffs.
-// Returns a map from file path to the diff chunk for that file.
-// The file path is the new path (b/ side) of each changed file.
-func SplitByFile(diff string) map[string]string {
-	result := make(map[string]string)
+// FileDiff holds the parsed diff for a single file.
+// Path is the new file path (b/ side) from the diff header.
+// Content is the complete diff text for that file.
+type FileDiff struct {
+	Path    string
+	Content string
+}
+
+// ParseDiff parses a raw git diff string into a slice of FileDiff, one entry
+// per changed file.
+func ParseDiff(diff string) []FileDiff {
+	var result []FileDiff
 	if diff == "" {
 		return result
 	}
 
 	lines := strings.Split(diff, "\n")
 
-	var currentFile string
+	var current *FileDiff
 	var currentLines []string
 
 	flush := func() {
-		if currentFile == "" {
+		if current == nil {
 			return
 		}
-		result[currentFile] = strings.TrimRight(strings.Join(currentLines, "\n"), "\n")
+		current.Content = strings.TrimRight(strings.Join(currentLines, "\n"), "\n")
+		result = append(result, *current)
+		current = nil
+		currentLines = nil
 	}
 
 	for _, line := range lines {
 		if strings.HasPrefix(line, "diff --git ") {
 			flush()
-			currentFile = fileFromDiffHeader(line)
+			current = &FileDiff{Path: fileFromDiffHeader(line)}
 			currentLines = []string{line}
-		} else if currentFile != "" {
+		} else if current != nil {
 			currentLines = append(currentLines, line)
 		}
 	}
@@ -40,18 +50,25 @@ func SplitByFile(diff string) map[string]string {
 	return result
 }
 
-// SplitByFolder splits a git diff string into per-folder diffs.
-// Returns a map from folder path to the combined diff for all files in that folder.
-// Files at the repository root are grouped under ".".
-func SplitByFolder(diff string) map[string]string {
-	byFile := SplitByFile(diff)
+// SplitByFile returns a map from file path to diff content for each FileDiff.
+func SplitByFile(diffs []FileDiff) map[string]string {
+	result := make(map[string]string, len(diffs))
+	for _, d := range diffs {
+		result[d.Path] = d.Content
+	}
+	return result
+}
+
+// SplitByFolder returns a map from folder path to the combined diff for all
+// files in that folder. Files at the repository root are grouped under ".".
+func SplitByFolder(diffs []FileDiff) map[string]string {
 	result := make(map[string]string)
-	for filename, fileDiff := range byFile {
-		dir := path.Dir(filename)
+	for _, d := range diffs {
+		dir := path.Dir(d.Path)
 		if existing, ok := result[dir]; ok {
-			result[dir] = existing + "\n" + fileDiff
+			result[dir] = existing + "\n" + d.Content
 		} else {
-			result[dir] = fileDiff
+			result[dir] = d.Content
 		}
 	}
 	return result

@@ -27,8 +27,52 @@ index 333..444 100644
  package main
 +// root change`
 
+func TestParseDiff(t *testing.T) {
+	got := ParseDiff(testDiff)
+
+	if len(got) != 3 {
+		t.Fatalf("got %d FileDiffs, want 3", len(got))
+	}
+
+	paths := map[string]bool{}
+	for _, d := range got {
+		paths[d.Path] = true
+	}
+	for _, p := range []string{"internal/foo/foo.go", "internal/foo/foo_test.go", "main.go"} {
+		if !paths[p] {
+			t.Errorf("missing path %q in ParseDiff result", p)
+		}
+	}
+}
+
+func TestParseDiff_empty(t *testing.T) {
+	got := ParseDiff("")
+	if len(got) != 0 {
+		t.Errorf("got %d FileDiffs for empty diff, want 0", len(got))
+	}
+}
+
+func TestParseDiff_singleFile(t *testing.T) {
+	diff := `diff --git a/foo.go b/foo.go
+--- a/foo.go
++++ b/foo.go
+@@ -1 +1 @@
+-old
++new`
+	got := ParseDiff(diff)
+	if len(got) != 1 {
+		t.Fatalf("got %d FileDiffs, want 1", len(got))
+	}
+	if got[0].Path != "foo.go" {
+		t.Errorf("got path %q, want foo.go", got[0].Path)
+	}
+	if !containsLine(got[0].Content, "diff --git a/foo.go b/foo.go") {
+		t.Error("Content should contain the diff --git header")
+	}
+}
+
 func TestSplitByFile(t *testing.T) {
-	got := SplitByFile(testDiff)
+	got := SplitByFile(ParseDiff(testDiff))
 
 	if len(got) != 3 {
 		t.Fatalf("got %d files, want 3", len(got))
@@ -53,7 +97,7 @@ func TestSplitByFile(t *testing.T) {
 }
 
 func TestSplitByFile_empty(t *testing.T) {
-	got := SplitByFile("")
+	got := SplitByFile(ParseDiff(""))
 	if len(got) != 0 {
 		t.Errorf("got %d files for empty diff, want 0", len(got))
 	}
@@ -66,7 +110,7 @@ func TestSplitByFile_singleFile(t *testing.T) {
 @@ -1 +1 @@
 -old
 +new`
-	got := SplitByFile(diff)
+	got := SplitByFile(ParseDiff(diff))
 	if len(got) != 1 {
 		t.Fatalf("got %d files, want 1", len(got))
 	}
@@ -76,7 +120,7 @@ func TestSplitByFile_singleFile(t *testing.T) {
 }
 
 func TestSplitByFolder(t *testing.T) {
-	got := SplitByFolder(testDiff)
+	got := SplitByFolder(ParseDiff(testDiff))
 
 	// Expect two folders: "internal/foo" and "."
 	if len(got) != 2 {
@@ -100,7 +144,7 @@ func TestSplitByFolder(t *testing.T) {
 }
 
 func TestSplitByFolder_empty(t *testing.T) {
-	got := SplitByFolder("")
+	got := SplitByFolder(ParseDiff(""))
 	if len(got) != 0 {
 		t.Errorf("got %d folders for empty diff, want 0", len(got))
 	}
