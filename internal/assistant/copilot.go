@@ -4,14 +4,6 @@ import (
 	"os/exec"
 )
 
-// copilotModels lists models supported by the copilot CLI.
-var copilotModels = []string{
-	"gpt-4o",
-	"gpt-4.1",
-	"o4-mini",
-	"claude-3.7-sonnet",
-}
-
 // Copilot invokes the `copilot` CLI.
 type Copilot struct {
 	Model string
@@ -24,4 +16,9 @@ func (c *Copilot) Command(prompt string) *exec.Cmd {
 	}
 	args = append(args, "--prompt", prompt)
 	return exec.Command("copilot", args...)
+}
+
+// ModelsCommand returns the command that lists available Copilot models (one per line).
+func (c *Copilot) ModelsCommand() *exec.Cmd {
+	return exec.Command("copilot", "models")
 }

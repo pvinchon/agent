@@ -76,16 +76,17 @@ func TestFlagSet_modelFlagWithSuffix(t *testing.T) {
 }
 
 func TestFlagSet_withValidModel(t *testing.T) {
+	makeFakeCLIWithModels(t, "claude", claudeTestModels, "")
 	fs := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
 	mustAssistant := FlagSet(fs, "")
-	fs.Parse([]string{"--assistant=claude", "--model=claude-sonnet-4-5"})
+	fs.Parse([]string{"--assistant=claude", "--model=test-claude-sonnet"})
 
 	a := mustAssistant()
 	c, ok := a.(*Claude)
 	if !ok {
 		t.Fatalf("expected *Claude, got %T", a)
 	}
-	if c.Model != "claude-sonnet-4-5" {
-		t.Errorf("Model = %q, want %q", c.Model, "claude-sonnet-4-5")
+	if c.Model != "test-claude-sonnet" {
+		t.Errorf("Model = %q, want %q", c.Model, "test-claude-sonnet")
 	}
 }

@@ -4,13 +4,6 @@ import (
 	"os/exec"
 )
 
-// claudeModels lists models supported by the claude CLI.
-var claudeModels = []string{
-	"claude-haiku-3-5",
-	"claude-sonnet-4-5",
-	"claude-opus-4-5",
-}
-
 // Claude invokes the `claude` CLI.
 type Claude struct {
 	Model string
@@ -23,4 +16,9 @@ func (c *Claude) Command(prompt string) *exec.Cmd {
 	}
 	args = append(args, prompt)
 	return exec.Command("claude", args...)
+}
+
+// ModelsCommand returns the command that lists available Claude models (one per line).
+func (c *Claude) ModelsCommand() *exec.Cmd {
+	return exec.Command("claude", "models")
 }

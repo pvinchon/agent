@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"strings"
 )
 
 // FlagSet registers --assistant and --model flags on fs and returns a function
@@ -19,7 +18,7 @@ func FlagSet(fs *flag.FlagSet, suffix string) func() Assistant {
 		modelFlagName = "model-for-" + suffix
 	}
 	name := fs.String(assistantFlagName, "", "AI assistant to use: "+assistantNames)
-	model := fs.String(modelFlagName, "", "model to use for the assistant (leave empty for default; available models depend on the chosen assistant)")
+	model := fs.String(modelFlagName, "", "model to use for the assistant (leave empty for default; run `<assistant> models` to list available models)")
 	return func() Assistant {
 		if *name == "" {
 			fs.Usage()
@@ -29,13 +28,6 @@ func FlagSet(fs *flag.FlagSet, suffix string) func() Assistant {
 		a, err := New(*name, *model)
 		if err != nil {
 			fs.Usage()
-			if *model != "" {
-				// provide available models in the error message
-				if models, ok := modelsByAssistant[*name]; ok {
-					fmt.Fprintf(os.Stderr, "error: %s\navailable models for %s: %s\n", err, *name, strings.Join(models, ", "))
-					os.Exit(2)
-				}
-			}
 			fmt.Fprintln(os.Stderr, "error:", err)
 			os.Exit(2)
 		}
