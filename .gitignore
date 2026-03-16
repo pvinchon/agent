@@ -14,7 +14,8 @@
 !go.sum
 !go.mod
 
-!README.md
+!*.md
+!*.yml
 !LICENSE
 
 # !Makefile
