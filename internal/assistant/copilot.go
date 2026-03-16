@@ -17,8 +17,3 @@ func (c *Copilot) Command(prompt string) *exec.Cmd {
 	args = append(args, "--prompt", prompt)
 	return exec.Command("copilot", args...)
 }
-
-// ModelsCommand returns the command that lists available Copilot models (one per line).
-func (c *Copilot) ModelsCommand() *exec.Cmd {
-	return exec.Command("copilot", "models")
-}

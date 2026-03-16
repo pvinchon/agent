@@ -18,7 +18,7 @@ func FlagSet(fs *flag.FlagSet, suffix string) func() Assistant {
 		modelFlagName = "model-for-" + suffix
 	}
 	name := fs.String(assistantFlagName, "", "AI assistant to use: "+assistantNames)
-	model := fs.String(modelFlagName, "", "model to use for the assistant (leave empty for default; run `<assistant> models` to list available models)")
+	model := fs.String(modelFlagName, "", "model to use for the assistant (leave empty for default)")
 	return func() Assistant {
 		if *name == "" {
 			fs.Usage()

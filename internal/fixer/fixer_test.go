@@ -109,7 +109,6 @@ type fakeAssistant struct {
 }
 
 func (f *fakeAssistant) Command(prompt string) *exec.Cmd { return f.fn(prompt) }
-func (f *fakeAssistant) ModelsCommand() *exec.Cmd        { return exec.Command("true") }
 
 func echoCmd(output string) *exec.Cmd { return exec.Command("echo", output) }
 func failCmd() *exec.Cmd              { return exec.Command("false") }
