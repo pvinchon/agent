@@ -21,20 +21,48 @@ func makeFakeCLI(t *testing.T, name, output string) {
 
 func TestNew_ValidNames(t *testing.T) {
 	for _, name := range []string{"claude", "copilot"} {
-		a, err := New(name)
+		a, err := New(name, "")
 		if err != nil {
-			t.Errorf("New(%q) unexpected error: %v", name, err)
+			t.Errorf("New(%q, \"\") unexpected error: %v", name, err)
 		}
 		if a == nil {
-			t.Errorf("New(%q) returned nil", name)
+			t.Errorf("New(%q, \"\") returned nil", name)
 		}
 	}
 }
 
 func TestNew_InvalidName(t *testing.T) {
-	_, err := New("unknown")
+	_, err := New("unknown", "")
 	if err == nil {
-		t.Error("New(\"unknown\") expected error, got nil")
+		t.Error("New(\"unknown\", \"\") expected error, got nil")
+	}
+}
+
+func TestNew_ValidModel(t *testing.T) {
+	a, err := New("claude", "claude-sonnet-4-5")
+	if err != nil {
+		t.Fatalf("New(\"claude\", \"claude-sonnet-4-5\") unexpected error: %v", err)
+	}
+	c, ok := a.(*Claude)
+	if !ok {
+		t.Fatalf("expected *Claude, got %T", a)
+	}
+	if c.Model != "claude-sonnet-4-5" {
+		t.Errorf("Model = %q, want %q", c.Model, "claude-sonnet-4-5")
+	}
+}
+
+func TestNew_InvalidModel(t *testing.T) {
+	_, err := New("claude", "gpt-4o")
+	if err == nil {
+		t.Error("New(\"claude\", \"gpt-4o\") expected error, got nil")
+	}
+}
+
+func TestNew_ModelNotAvailableForAssistant(t *testing.T) {
+	_, err := New("copilot", "claude-opus-4-5")
+	if err == nil {
+		t.Error("New(\"copilot\", \"claude-opus-4-5\") expected error: claude-opus-4-5 is a Claude-only model")
 	}
 }
 
