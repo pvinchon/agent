@@ -11,8 +11,8 @@ func TestNewReviewer(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if r.Name != "security" {
-		t.Errorf("got name %q, want %q", r.Name, "security")
+	if r.Slug != "security" {
+		t.Errorf("got slug %q, want %q", r.Slug, "security")
 	}
 	if r.Prompt == "" {
 		t.Error("prompt is empty")
@@ -69,7 +69,7 @@ func TestBuildPrompt_order(t *testing.T) {
 }
 
 func TestReview_issues(t *testing.T) {
-	r := Reviewer{Name: "security", Prompt: "check security"}
+	r := Reviewer{Slug: "security", Prompt: "check security"}
 	a := &fakeAssistant{fn: func(string) *exec.Cmd {
 		return echoCmd(`[{"severity":"HIGH","title":"SQL injection","location":"db.go:10","description":"User input in query."}]`)
 	}}
@@ -93,7 +93,7 @@ func TestReview_issues(t *testing.T) {
 }
 
 func TestReview_empty(t *testing.T) {
-	r := Reviewer{Name: "security", Prompt: "check security"}
+	r := Reviewer{Slug: "security", Prompt: "check security"}
 	a := &fakeAssistant{fn: func(string) *exec.Cmd { return echoCmd("[]") }}
 
 	issues, err := r.review("diff", a)
@@ -106,7 +106,7 @@ func TestReview_empty(t *testing.T) {
 }
 
 func TestReview_invalidJSON(t *testing.T) {
-	r := Reviewer{Name: "security", Prompt: "check security"}
+	r := Reviewer{Slug: "security", Prompt: "check security"}
 	a := &fakeAssistant{fn: func(string) *exec.Cmd { return echoCmd("not json") }}
 
 	_, err := r.review("diff", a)
@@ -167,8 +167,8 @@ func TestReview_promptError(t *testing.T) {
 }
 
 func TestReview_partialFailure(t *testing.T) {
-	ok := Reviewer{Name: "ok", Prompt: "ok"}
-	bad := Reviewer{Name: "bad", Prompt: "bad"}
+	ok := Reviewer{Slug: "ok", Prompt: "ok"}
+	bad := Reviewer{Slug: "bad", Prompt: "bad"}
 
 	a := &fakeAssistant{fn: func(prompt string) *exec.Cmd {
 		if strings.Contains(prompt, "bad") {
@@ -197,11 +197,11 @@ func TestResolve(t *testing.T) {
 	if len(reviewers) != 2 {
 		t.Fatalf("got %d reviewers, want 2", len(reviewers))
 	}
-	if reviewers[0].Name != "security" {
-		t.Errorf("got %q, want %q", reviewers[0].Name, "security")
+	if reviewers[0].Slug != "security" {
+		t.Errorf("got %q, want %q", reviewers[0].Slug, "security")
 	}
-	if reviewers[1].Name != "tests" {
-		t.Errorf("got %q, want %q", reviewers[1].Name, "tests")
+	if reviewers[1].Slug != "tests" {
+		t.Errorf("got %q, want %q", reviewers[1].Slug, "tests")
 	}
 }
 

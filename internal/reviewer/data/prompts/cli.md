@@ -1,3 +1,9 @@
+---
+slug: cli
+name: CLI
+description: Reviews CLI interface issues that break user expectations or POSIX conventions
+---
+
 ## Focus: CLI Design
 
 Review the diff for command-line interface issues that **break user expectations or POSIX conventions**.

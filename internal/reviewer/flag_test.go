@@ -15,10 +15,10 @@ func TestFlagSet(t *testing.T) {
 	if len(reviewers) != 2 {
 		t.Fatalf("got %d reviewers, want 2", len(reviewers))
 	}
-	if reviewers[0].Name != "security" {
-		t.Errorf("got %q, want %q", reviewers[0].Name, "security")
+	if reviewers[0].Slug != "security" {
+		t.Errorf("got %q, want %q", reviewers[0].Slug, "security")
 	}
-	if reviewers[1].Name != "tests" {
-		t.Errorf("got %q, want %q", reviewers[1].Name, "tests")
+	if reviewers[1].Slug != "tests" {
+		t.Errorf("got %q, want %q", reviewers[1].Slug, "tests")
 	}
 }

@@ -1,3 +1,9 @@
+---
+slug: tests
+name: Tests
+description: Reviews test quality issues that give false confidence
+---
+
 ## Focus: Tests
 
 Review the diff for **test quality issues** that give false confidence or leave critical behaviour unverified.

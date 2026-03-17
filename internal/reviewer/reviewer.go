@@ -20,38 +20,55 @@ var prompts embed.FS
 
 // Reviewer focuses on a specific aspect of code quality, defined by its prompt.
 type Reviewer struct {
-	Name   string
-	Prompt string
+	Slug        string
+	Name        string
+	Description string
+	Prompt      string
 }
 
-var reviewersByName = func() map[string]Reviewer {
+var reviewersBySlug = func() map[string]Reviewer {
 	entries, err := prompts.ReadDir("data/prompts")
 	if err != nil {
 		panic(err)
 	}
 	m := make(map[string]Reviewer, len(entries))
 	for _, e := range entries {
-		name := strings.TrimSuffix(e.Name(), ".md")
 		data, err := prompts.ReadFile("data/prompts/" + e.Name())
 		if err != nil {
 			panic(err)
 		}
-		m[name] = Reviewer{Name: name, Prompt: string(data)}
+		fm, body, err := parseFrontmatter(string(data))
+		if err != nil {
+			panic(fmt.Sprintf("prompt %s: %v", e.Name(), err))
+		}
+		m[fm.Slug] = Reviewer{
+			Slug:        fm.Slug,
+			Name:        fm.Name,
+			Description: fm.Description,
+			Prompt:      body,
+		}
 	}
 	return m
 }()
 
-var reviewerNames = strings.Join(slices.Sorted(maps.Keys(reviewersByName)), ", ")
+var reviewerSlugs = strings.Join(slices.Sorted(maps.Keys(reviewersBySlug)), ", ")
 
-// resolve parses a comma-separated list of reviewer names and returns the
-// corresponding Reviewers. Returns an error if any name is unknown.
-func resolve(names string) ([]Reviewer, error) {
-	if names == "" {
+// All returns all registered reviewers sorted by slug.
+func All() []Reviewer {
+	return slices.SortedFunc(maps.Values(reviewersBySlug), func(a, b Reviewer) int {
+		return strings.Compare(a.Slug, b.Slug)
+	})
+}
+
+// resolve parses a comma-separated list of reviewer slugs and returns the
+// corresponding Reviewers. Returns an error if any slug is unknown.
+func resolve(slugs string) ([]Reviewer, error) {
+	if slugs == "" {
 		return nil, nil
 	}
 	var result []Reviewer
-	for name := range strings.SplitSeq(names, ",") {
-		r, err := New(strings.TrimSpace(name))
+	for slug := range strings.SplitSeq(slugs, ",") {
+		r, err := New(strings.TrimSpace(slug))
 		if err != nil {
 			return nil, err
 		}
@@ -60,11 +77,11 @@ func resolve(names string) ([]Reviewer, error) {
 	return result, nil
 }
 
-// New returns the Reviewer registered under name.
-func New(name string) (Reviewer, error) {
-	r, ok := reviewersByName[name]
+// New returns the Reviewer registered under slug.
+func New(slug string) (Reviewer, error) {
+	r, ok := reviewersBySlug[slug]
 	if !ok {
-		return Reviewer{}, fmt.Errorf("unknown reviewer %q: choose from %s", name, reviewerNames)
+		return Reviewer{}, fmt.Errorf("unknown reviewer %q: choose from %s", slug, reviewerSlugs)
 	}
 	return r, nil
 }
@@ -78,21 +95,21 @@ func (r Reviewer) buildPrompt(diff string) string {
 func (r Reviewer) review(diff string, a assistant.Assistant) ([]Issue, error) {
 	prompt := r.buildPrompt(diff)
 
-	slog.Debug("reviewer", "name", r.Name, "prompt", prompt)
+	slog.Debug("reviewer", "slug", r.Slug, "prompt", prompt)
 
 	response, err := assistant.Prompt(a, prompt)
 
 	if err != nil {
-		return nil, fmt.Errorf("reviewer %q: %w", r.Name, err)
+		return nil, fmt.Errorf("reviewer %q: %w", r.Slug, err)
 	}
 
 	var issues []Issue
 	if err := json.Unmarshal([]byte(response), &issues); err != nil {
-		slog.Debug("reviewer", "name", r.Name, "prompt", prompt, "response", response)
-		return nil, fmt.Errorf("reviewer %q: unmarshal issues: %w", r.Name, err)
+		slog.Debug("reviewer", "slug", r.Slug, "prompt", prompt, "response", response)
+		return nil, fmt.Errorf("reviewer %q: unmarshal issues: %w", r.Slug, err)
 	}
 	for i := range issues {
-		issues[i].Reviewer = r.Name
+		issues[i].Reviewer = r.Slug
 	}
 	return issues, nil
 }

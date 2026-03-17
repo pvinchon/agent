@@ -1,3 +1,9 @@
+---
+slug: security
+name: Security
+description: Reviews exploitable vulnerabilities
+---
+
 ## Focus: Security
 
 Review the diff for **exploitable vulnerabilities** — code an attacker could use to compromise confidentiality, integrity, or availability.

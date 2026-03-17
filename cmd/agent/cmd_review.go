@@ -23,6 +23,21 @@ Reviews the current diff and outputs issues as JSON to stdout.
 Flags:
 `)
 	fs.PrintDefaults()
+
+	all := reviewer.All()
+	slugWidth, nameWidth := 0, 0
+	for _, r := range all {
+		if len(r.Slug) > slugWidth {
+			slugWidth = len(r.Slug)
+		}
+		if len(r.Name) > nameWidth {
+			nameWidth = len(r.Name)
+		}
+	}
+	fmt.Fprintln(os.Stderr, "\nAvailable reviewers:")
+	for _, r := range all {
+		fmt.Fprintf(os.Stderr, "  %-*s  %-*s  %s\n", slugWidth, r.Slug, nameWidth, r.Name, r.Description)
+	}
 }
 
 func reviewFlags(fs *flag.FlagSet) (mustReviewers func() []reviewer.Reviewer, mustAssistant func() assistant.Assistant, resolveLog func() *slog.Logger) {
