@@ -10,6 +10,8 @@ import (
 	"os"
 
 	"github.com/pvinchon/agent/internal/assistant"
+	"github.com/pvinchon/agent/internal/fixer"
+	"github.com/pvinchon/agent/internal/prompt"
 	"github.com/pvinchon/agent/internal/reviewer"
 	xlog "github.com/pvinchon/agent/internal/x/log"
 )
@@ -24,15 +26,28 @@ Flags:
 	fs.PrintDefaults()
 }
 
-func loopFlags(fs *flag.FlagSet) (mustReviewers func() []reviewer.Reviewer, mustReviewAssistant func() assistant.Assistant, mustFixAssistant func() assistant.Assistant, resolveLog func() *slog.Logger, maxAttempts *int) {
+func loopFlags(fs *flag.FlagSet) (
+	mustReviewers        func() []reviewer.Reviewer,
+	mustReviewerTemplate func() prompt.Prompt,
+	mustReviewAssistant  func() assistant.Assistant,
+	mustFixAssistant     func() assistant.Assistant,
+	mustFixerTemplate    func() prompt.Prompt,
+	resolveLog           func() *slog.Logger,
+	maxAttempts          *int,
+) {
 	maxAttempts = fs.Int("max-attempts", 5, "maximum number of fix attempts")
-	return reviewer.FlagSet(fs), assistant.FlagSet(fs, "review"), assistant.FlagSet(fs, "fix"), xlog.FlagSet(fs), maxAttempts
+	mustReviewers, mustReviewerTemplate = reviewer.FlagSet(fs)
+	mustReviewAssistant = assistant.FlagSet(fs, "review")
+	mustFixAssistant = assistant.FlagSet(fs, "fix")
+	mustFixerTemplate = fixer.FlagSet(fs)
+	resolveLog = xlog.FlagSet(fs)
+	return
 }
 
 func runLoop(args []string) {
 	fs := flag.NewFlagSet("loop", flag.ExitOnError)
 	fs.Usage = func() { loopUsage(fs) }
-	mustReviewers, mustReviewAssistant, mustFixAssistant, resolveLog, maxAttempts := loopFlags(fs)
+	mustReviewers, _, mustReviewAssistant, mustFixAssistant, mustFixerTemplate, resolveLog, maxAttempts := loopFlags(fs)
 	fs.Parse(args)
 
 	slog.SetDefault(resolveLog())
@@ -40,6 +55,7 @@ func runLoop(args []string) {
 	reviewers := mustReviewers()
 	ra := mustReviewAssistant()
 	fa := mustFixAssistant()
+	fixTmpl := mustFixerTemplate()
 
 	for attempt := 1; attempt <= *maxAttempts; attempt++ {
 		fmt.Printf("Attempt %d/%d\n", attempt, *maxAttempts)
@@ -58,7 +74,7 @@ func runLoop(args []string) {
 		}
 
 		log.Printf("Fixing %d issue(s)", len(issues))
-		fix(fa, &buf)
+		fix(fa, bytes.NewReader(buf.Bytes()), fixTmpl)
 	}
 
 	fmt.Printf("Reached max attempts (%d)\n", *maxAttempts)

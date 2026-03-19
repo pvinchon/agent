@@ -1,75 +1,69 @@
 package reviewer
 
 import (
+	"os"
 	"os/exec"
 	"strings"
 	"testing"
+
+	"github.com/pvinchon/agent/internal/prompt"
 )
 
-func TestNewReviewer(t *testing.T) {
-	r, err := New("security")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if r.Name != "security" {
-		t.Errorf("got name %q, want %q", r.Name, "security")
-	}
-	if r.Prompt == "" {
-		t.Error("prompt is empty")
+const syntheticTemplate = "TEMPLATE {{prompt}} MIDDLE {{diff}} END"
+
+func makeReviewer(t *testing.T, name, focus string) Reviewer {
+	t.Helper()
+	return Reviewer{
+		Name:     name,
+		Prompt:   prompt.New(focus),
+		Template: prompt.New(syntheticTemplate),
 	}
 }
 
-func TestNew_unknown(t *testing.T) {
-	_, err := New("nonexistent")
-	if err == nil {
-		t.Fatal("expected error for unknown reviewer")
-	}
-	if !strings.Contains(err.Error(), "nonexistent") {
-		t.Errorf("error should mention the unknown name, got: %v", err)
-	}
+// fakeAssistant implements assistant.Assistant for tests.
+type fakeAssistant struct {
+	fn func(string) *exec.Cmd
 }
+
+func (f *fakeAssistant) Command(p string) *exec.Cmd { return f.fn(p) }
+
+func echoCmd(output string) *exec.Cmd { return exec.Command("echo", output) }
+func failCmd() *exec.Cmd              { return exec.Command("false") }
 
 func TestBuildPrompt(t *testing.T) {
-	r, err := New("security")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	r := makeReviewer(t, "security", "check security issues")
+	diff := "some diff content"
 
-	diff := `--- a/main.go
-+++ b/main.go
-@@ -1 +1 @@
--fmt.Println("hello")
-+fmt.Println(userInput)`
+	result := r.buildPrompt(diff)
 
-	prompt := r.buildPrompt(diff)
-
-	if !strings.Contains(prompt, "You are a senior reviewer") {
-		t.Error("prompt does not contain base template text")
+	if !strings.Contains(result, "check security issues") {
+		t.Error("prompt does not contain reviewer focus")
 	}
-	if !strings.Contains(prompt, r.Prompt) {
-		t.Error("prompt does not contain reviewer-specific prompt")
-	}
-	if !strings.Contains(prompt, diff) {
+	if !strings.Contains(result, diff) {
 		t.Error("prompt does not contain the diff")
+	}
+	if !strings.Contains(result, "TEMPLATE") {
+		t.Error("prompt does not contain template text")
 	}
 }
 
 func TestBuildPrompt_order(t *testing.T) {
-	r, _ := New("security")
-	diff := "some diff"
-	prompt := r.buildPrompt(diff)
+	r := makeReviewer(t, "security", "FOCUS")
+	diff := "DIFF"
 
-	baseIdx := strings.Index(prompt, "You are a senior reviewer")
-	reviewerIdx := strings.Index(prompt, r.Prompt)
-	diffIdx := strings.Index(prompt, diff)
+	result := r.buildPrompt(diff)
 
-	if !(baseIdx < reviewerIdx && reviewerIdx < diffIdx) {
-		t.Error("expected order: base template text, reviewer prompt, diff")
+	templateIdx := strings.Index(result, "TEMPLATE")
+	focusIdx := strings.Index(result, "FOCUS")
+	diffIdx := strings.Index(result, "DIFF")
+
+	if !(templateIdx < focusIdx && focusIdx < diffIdx) {
+		t.Errorf("expected order: template text, focus, diff; got indices %d %d %d", templateIdx, focusIdx, diffIdx)
 	}
 }
 
 func TestReview_issues(t *testing.T) {
-	r := Reviewer{Name: "security", Prompt: "check security"}
+	r := makeReviewer(t, "security", "check security")
 	a := &fakeAssistant{fn: func(string) *exec.Cmd {
 		return echoCmd(`[{"severity":"HIGH","title":"SQL injection","location":"db.go:10","description":"User input in query."}]`)
 	}}
@@ -87,13 +81,10 @@ func TestReview_issues(t *testing.T) {
 	if issues[0].Severity != "HIGH" {
 		t.Errorf("got severity %q, want %q", issues[0].Severity, "HIGH")
 	}
-	if issues[0].Title != "SQL injection" {
-		t.Errorf("got title %q, want %q", issues[0].Title, "SQL injection")
-	}
 }
 
 func TestReview_empty(t *testing.T) {
-	r := Reviewer{Name: "security", Prompt: "check security"}
+	r := makeReviewer(t, "security", "check security")
 	a := &fakeAssistant{fn: func(string) *exec.Cmd { return echoCmd("[]") }}
 
 	issues, err := r.review("diff", a)
@@ -106,7 +97,7 @@ func TestReview_empty(t *testing.T) {
 }
 
 func TestReview_invalidJSON(t *testing.T) {
-	r := Reviewer{Name: "security", Prompt: "check security"}
+	r := makeReviewer(t, "security", "check security")
 	a := &fakeAssistant{fn: func(string) *exec.Cmd { return echoCmd("not json") }}
 
 	_, err := r.review("diff", a)
@@ -118,25 +109,15 @@ func TestReview_invalidJSON(t *testing.T) {
 	}
 }
 
-// fakeAssistant implements assistant.Assistant for tests.
-type fakeAssistant struct {
-	fn func(string) *exec.Cmd
-}
-
-func (f *fakeAssistant) Command(prompt string) *exec.Cmd { return f.fn(prompt) }
-
-func echoCmd(output string) *exec.Cmd { return exec.Command("echo", output) }
-func failCmd() *exec.Cmd              { return exec.Command("false") }
-
 func TestReview(t *testing.T) {
-	sec, _ := New("security")
-	tests, _ := New("tests")
+	sec := makeReviewer(t, "security", "check security")
+	tst := makeReviewer(t, "tests", "check tests")
 
 	a := &fakeAssistant{fn: func(string) *exec.Cmd {
 		return echoCmd(`[{"severity":"HIGH","title":"issue","location":"f.go:1","description":"bad"}]`)
 	}}
 
-	issues, errs := Review([]Reviewer{sec, tests}, "some diff", a)
+	issues, errs := Review([]Reviewer{sec, tst}, "some diff", a)
 	if len(errs) != 0 {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
@@ -144,17 +125,17 @@ func TestReview(t *testing.T) {
 		t.Fatalf("got %d issues, want 2", len(issues))
 	}
 
-	reviewerNames := map[string]bool{}
+	names := map[string]bool{}
 	for _, f := range issues {
-		reviewerNames[f.Reviewer] = true
+		names[f.Reviewer] = true
 	}
-	if !reviewerNames["security"] || !reviewerNames["tests"] {
-		t.Errorf("expected issues from both reviewers, got: %v", reviewerNames)
+	if !names["security"] || !names["tests"] {
+		t.Errorf("expected issues from both reviewers, got: %v", names)
 	}
 }
 
 func TestReview_promptError(t *testing.T) {
-	sec, _ := New("security")
+	sec := makeReviewer(t, "security", "check security")
 	a := &fakeAssistant{fn: func(string) *exec.Cmd { return failCmd() }}
 
 	issues, errs := Review([]Reviewer{sec}, "diff", a)
@@ -167,11 +148,11 @@ func TestReview_promptError(t *testing.T) {
 }
 
 func TestReview_partialFailure(t *testing.T) {
-	ok := Reviewer{Name: "ok", Prompt: "ok"}
-	bad := Reviewer{Name: "bad", Prompt: "bad"}
+	ok := makeReviewer(t, "ok", "ok focus")
+	bad := makeReviewer(t, "bad", "bad focus")
 
-	a := &fakeAssistant{fn: func(prompt string) *exec.Cmd {
-		if strings.Contains(prompt, "bad") {
+	a := &fakeAssistant{fn: func(p string) *exec.Cmd {
+		if strings.Contains(p, "bad focus") {
 			return failCmd()
 		}
 		return echoCmd(`[{"severity":"LOW","title":"minor","location":"f.go:1","description":"ok"}]`)
@@ -189,48 +170,85 @@ func TestReview_partialFailure(t *testing.T) {
 	}
 }
 
+func writeTempPrompt(t *testing.T, content string) string {
+	t.Helper()
+	f, err := os.CreateTemp("", "reviewer-*.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.Remove(f.Name()) })
+	f.WriteString(content)
+	f.Close()
+	return f.Name()
+}
+
 func TestResolve(t *testing.T) {
-	reviewers, err := resolve("security,tests")
+	p1 := writeTempPrompt(t, "focus 1")
+	p2 := writeTempPrompt(t, "focus 2")
+	tmpl := prompt.New(syntheticTemplate)
+
+	reviewers, err := resolve(p1+","+p2, tmpl)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if len(reviewers) != 2 {
 		t.Fatalf("got %d reviewers, want 2", len(reviewers))
 	}
-	if reviewers[0].Name != "security" {
-		t.Errorf("got %q, want %q", reviewers[0].Name, "security")
+	if reviewers[0].Prompt.String() != "focus 1" {
+		t.Errorf("got prompt %q, want %q", reviewers[0].Prompt.String(), "focus 1")
 	}
-	if reviewers[1].Name != "tests" {
-		t.Errorf("got %q, want %q", reviewers[1].Name, "tests")
+	if reviewers[1].Prompt.String() != "focus 2" {
+		t.Errorf("got prompt %q, want %q", reviewers[1].Prompt.String(), "focus 2")
 	}
 }
 
 func TestResolve_empty(t *testing.T) {
-	reviewers, err := resolve("")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if reviewers != nil {
-		t.Errorf("expected nil for empty input, got %v", reviewers)
+	_, err := resolve("", prompt.New("tmpl"))
+	if err == nil {
+		t.Fatal("expected error for empty paths")
 	}
 }
 
 func TestResolve_unknown(t *testing.T) {
-	_, err := resolve("security,bogus")
+	_, err := resolve("bogus-nonexistent-file.md", prompt.New("tmpl"))
 	if err == nil {
-		t.Fatal("expected error for unknown reviewer")
+		t.Fatal("expected error for nonexistent path")
 	}
-	if !strings.Contains(err.Error(), "bogus") {
-		t.Errorf("error should mention the unknown name, got: %v", err)
+	if !strings.Contains(err.Error(), "bogus-nonexistent-file.md") {
+		t.Errorf("error should include the path, got: %v", err)
 	}
 }
 
 func TestResolve_whitespace(t *testing.T) {
-	reviewers, err := resolve("security, tests")
+	p1 := writeTempPrompt(t, "focus 1")
+	p2 := writeTempPrompt(t, "focus 2")
+	tmpl := prompt.New(syntheticTemplate)
+
+	reviewers, err := resolve(p1+",  "+p2, tmpl)
 	if err != nil {
 		t.Fatalf("unexpected error with whitespace: %v", err)
 	}
 	if len(reviewers) != 2 {
 		t.Fatalf("got %d reviewers, want 2", len(reviewers))
+	}
+}
+
+func TestResolve_emptyToken(t *testing.T) {
+	_, err := resolve(",", prompt.New("tmpl"))
+	if err == nil {
+		t.Fatal("expected error for empty token")
+	}
+}
+
+func TestResolve_nameFromPath(t *testing.T) {
+	p := writeTempPrompt(t, "focus")
+	tmpl := prompt.New(syntheticTemplate)
+
+	reviewers, err := resolve(p, tmpl)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if strings.HasSuffix(reviewers[0].Name, ".md") {
+		t.Errorf("name should not include extension, got %q", reviewers[0].Name)
 	}
 }

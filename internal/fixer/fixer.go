@@ -1,41 +1,38 @@
 package fixer
 
 import (
-	_ "embed"
 	"fmt"
 	"log/slog"
 	"strings"
 
 	"github.com/pvinchon/agent/internal/assistant"
+	"github.com/pvinchon/agent/internal/prompt"
 	"github.com/pvinchon/agent/internal/reviewer"
 	"github.com/pvinchon/agent/internal/x/ux"
 )
 
-//go:embed data/prompt_template.md
-var promptTemplate string
-
 // Fix asks the assistant to fix all provided issues by editing files directly.
-func Fix(issues []reviewer.Issue, diff string, a assistant.Assistant) error {
+func Fix(issues []reviewer.Issue, diff string, a assistant.Assistant, tmpl prompt.Prompt) error {
 	defer ux.Spinner()()
-	prompt := buildPrompt(issues, diff)
+	p := buildPrompt(issues, diff, tmpl)
 
-	slog.Debug("fixer", "prompt", prompt)
+	slog.Debug("fixer", "prompt", p)
 
-	response, err := assistant.Prompt(a, prompt)
+	response, err := assistant.Prompt(a, p)
 	if err != nil {
 		return fmt.Errorf("fixer: %w", err)
 	}
 
-	slog.Debug("fixer", "prompt", prompt, "response", response)
+	slog.Debug("fixer", "prompt", p, "response", response)
 
 	return nil
 }
 
-func buildPrompt(issues []reviewer.Issue, diff string) string {
+func buildPrompt(issues []reviewer.Issue, diff string, tmpl prompt.Prompt) string {
 	return strings.NewReplacer(
 		"{{issues}}", formatIssues(issues),
 		"{{diff}}", diff,
-	).Replace(promptTemplate)
+	).Replace(tmpl.String())
 }
 
 func formatIssues(issues []reviewer.Issue) string {

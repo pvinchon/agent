@@ -11,6 +11,7 @@ import (
 
 	"github.com/pvinchon/agent/internal/assistant"
 	"github.com/pvinchon/agent/internal/git"
+	"github.com/pvinchon/agent/internal/prompt"
 	"github.com/pvinchon/agent/internal/reviewer"
 	xlog "github.com/pvinchon/agent/internal/x/log"
 )
@@ -25,14 +26,22 @@ Flags:
 	fs.PrintDefaults()
 }
 
-func reviewFlags(fs *flag.FlagSet) (mustReviewers func() []reviewer.Reviewer, mustAssistant func() assistant.Assistant, resolveLog func() *slog.Logger) {
-	return reviewer.FlagSet(fs), assistant.FlagSet(fs, ""), xlog.FlagSet(fs)
+func reviewFlags(fs *flag.FlagSet) (
+	mustReviewers func() []reviewer.Reviewer,
+	mustTemplate func() prompt.Prompt,
+	mustAssistant func() assistant.Assistant,
+	resolveLog func() *slog.Logger,
+) {
+	mustReviewers, mustTemplate = reviewer.FlagSet(fs)
+	mustAssistant = assistant.FlagSet(fs, "")
+	resolveLog = xlog.FlagSet(fs)
+	return
 }
 
 func runReview(args []string, w io.Writer) {
 	fs := flag.NewFlagSet("review", flag.ExitOnError)
 	fs.Usage = func() { reviewUsage(fs) }
-	mustReviewers, mustAssistant, resolveLog := reviewFlags(fs)
+	mustReviewers, _, mustAssistant, resolveLog := reviewFlags(fs)
 	fs.Parse(args)
 
 	slog.SetDefault(resolveLog())

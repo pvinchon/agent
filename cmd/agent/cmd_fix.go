@@ -12,6 +12,7 @@ import (
 	"github.com/pvinchon/agent/internal/assistant"
 	"github.com/pvinchon/agent/internal/fixer"
 	"github.com/pvinchon/agent/internal/git"
+	"github.com/pvinchon/agent/internal/prompt"
 	"github.com/pvinchon/agent/internal/reviewer"
 	xlog "github.com/pvinchon/agent/internal/x/log"
 )
@@ -26,21 +27,28 @@ Flags:
 	fs.PrintDefaults()
 }
 
-func fixFlags(fs *flag.FlagSet) (mustAssistant func() assistant.Assistant, resolveLog func() *slog.Logger) {
-	return assistant.FlagSet(fs, ""), xlog.FlagSet(fs)
+func fixFlags(fs *flag.FlagSet) (
+	mustAssistant func() assistant.Assistant,
+	mustTemplate func() prompt.Prompt,
+	resolveLog func() *slog.Logger,
+) {
+	mustAssistant = assistant.FlagSet(fs, "")
+	mustTemplate = fixer.FlagSet(fs)
+	resolveLog = xlog.FlagSet(fs)
+	return
 }
 
 func runFix(args []string, r io.Reader) {
 	fs := flag.NewFlagSet("fix", flag.ExitOnError)
 	fs.Usage = func() { fixUsage(fs) }
-	mustAssistant, resolveLog := fixFlags(fs)
+	mustAssistant, mustTemplate, resolveLog := fixFlags(fs)
 	fs.Parse(args)
 
 	slog.SetDefault(resolveLog())
-	fix(mustAssistant(), r)
+	fix(mustAssistant(), r, mustTemplate())
 }
 
-func fix(a assistant.Assistant, r io.Reader) {
+func fix(a assistant.Assistant, r io.Reader, tmpl prompt.Prompt) {
 	var issues []reviewer.Issue
 	if err := json.NewDecoder(r).Decode(&issues); err != nil {
 		log.Fatal(err)
@@ -52,7 +60,7 @@ func fix(a assistant.Assistant, r io.Reader) {
 	}
 
 	log.Println("Fixing issues")
-	if err := fixer.Fix(issues, diff, a); err != nil {
+	if err := fixer.Fix(issues, diff, a, tmpl); err != nil {
 		log.Fatal(err)
 	}
 }

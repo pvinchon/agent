@@ -5,38 +5,52 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/pvinchon/agent/internal/prompt"
 	"github.com/pvinchon/agent/internal/reviewer"
 )
+
+const syntheticTemplate = "FIXER {{issues}} MIDDLE {{diff}} END"
 
 var testIssues = []reviewer.Issue{
 	{Reviewer: "security", Severity: "HIGH", Title: "SQL injection", Location: "db.go:10", Description: "User input used directly in query."},
 	{Reviewer: "go", Severity: "LOW", Title: "Unused variable", Location: "main.go:5", Description: "Variable x is never used."},
 }
 
-func TestBuildPrompt(t *testing.T) {
-	diff := "some diff content"
-	prompt := buildPrompt(testIssues, diff)
+type fakeAssistant struct {
+	fn func(string) *exec.Cmd
+}
 
-	if !strings.Contains(prompt, "You are a senior engineer") {
-		t.Error("prompt does not contain base template text")
-	}
-	if !strings.Contains(prompt, diff) {
-		t.Error("prompt does not contain the diff")
-	}
-	if !strings.Contains(prompt, "SQL injection") {
+func (f *fakeAssistant) Command(p string) *exec.Cmd { return f.fn(p) }
+
+func echoCmd(output string) *exec.Cmd { return exec.Command("echo", output) }
+func failCmd() *exec.Cmd              { return exec.Command("false") }
+
+func TestBuildPrompt(t *testing.T) {
+	tmpl := prompt.New(syntheticTemplate)
+	diff := "some diff content"
+	result := buildPrompt(testIssues, diff, tmpl)
+
+	if !strings.Contains(result, "SQL injection") {
 		t.Error("prompt does not contain issue title")
 	}
-	if !strings.Contains(prompt, "db.go:10") {
+	if !strings.Contains(result, "db.go:10") {
 		t.Error("prompt does not contain issue location")
+	}
+	if !strings.Contains(result, diff) {
+		t.Error("prompt does not contain the diff")
+	}
+	if !strings.Contains(result, "FIXER") {
+		t.Error("prompt does not contain template text")
 	}
 }
 
 func TestBuildPrompt_order(t *testing.T) {
+	tmpl := prompt.New(syntheticTemplate)
 	diff := "some diff"
-	prompt := buildPrompt(testIssues, diff)
+	result := buildPrompt(testIssues, diff, tmpl)
 
-	issuesIdx := strings.Index(prompt, "SQL injection")
-	diffIdx := strings.Index(prompt, diff)
+	issuesIdx := strings.Index(result, "SQL injection")
+	diffIdx := strings.Index(result, diff)
 
 	if !(issuesIdx < diffIdx) {
 		t.Error("expected issues before diff in prompt")
@@ -69,20 +83,20 @@ func TestFormatIssues_empty(t *testing.T) {
 
 func TestFix_success(t *testing.T) {
 	a := &fakeAssistant{fn: func(string) *exec.Cmd { return echoCmd("ok") }}
-	if err := Fix(testIssues, "diff", a); err != nil {
+	if err := Fix(testIssues, "diff", a, prompt.New(syntheticTemplate)); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
 func TestFix_promptContainsIssuesAndDiff(t *testing.T) {
 	var capturedPrompt string
-	a := &fakeAssistant{fn: func(prompt string) *exec.Cmd {
-		capturedPrompt = prompt
+	a := &fakeAssistant{fn: func(p string) *exec.Cmd {
+		capturedPrompt = p
 		return echoCmd("")
 	}}
 
 	diff := "my diff"
-	if err := Fix(testIssues, diff, a); err != nil {
+	if err := Fix(testIssues, diff, a, prompt.New(syntheticTemplate)); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if !strings.Contains(capturedPrompt, "SQL injection") {
@@ -95,7 +109,7 @@ func TestFix_promptContainsIssuesAndDiff(t *testing.T) {
 
 func TestFix_error(t *testing.T) {
 	a := &fakeAssistant{fn: func(string) *exec.Cmd { return failCmd() }}
-	err := Fix(testIssues, "diff", a)
+	err := Fix(testIssues, "diff", a, prompt.New(syntheticTemplate))
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
@@ -103,12 +117,3 @@ func TestFix_error(t *testing.T) {
 		t.Errorf("error should mention fixer, got: %v", err)
 	}
 }
-
-type fakeAssistant struct {
-	fn func(string) *exec.Cmd
-}
-
-func (f *fakeAssistant) Command(prompt string) *exec.Cmd { return f.fn(prompt) }
-
-func echoCmd(output string) *exec.Cmd { return exec.Command("echo", output) }
-func failCmd() *exec.Cmd              { return exec.Command("false") }
