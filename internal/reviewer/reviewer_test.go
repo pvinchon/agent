@@ -1,36 +1,56 @@
 package reviewer
 
 import (
+	"net/http"
+	"net/http/httptest"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 )
 
+func tempPrompt(t *testing.T, name, content string) string {
+	t.Helper()
+	dir := t.TempDir()
+	path := filepath.Join(dir, name)
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+func swapHTTPClient(t *testing.T, c *http.Client) {
+	t.Helper()
+	old := httpClient
+	httpClient = c
+	t.Cleanup(func() { httpClient = old })
+}
+
 func TestNewReviewer(t *testing.T) {
-	r, err := New("security")
+	path := tempPrompt(t, "security.md", "check for vulnerabilities")
+	r, err := New(path)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if r.Name != "security" {
-		t.Errorf("got name %q, want %q", r.Name, "security")
+	if r.Path != path {
+		t.Errorf("got path %q, want %q", r.Path, path)
 	}
 	if r.Prompt == "" {
 		t.Error("prompt is empty")
 	}
 }
 
-func TestNew_unknown(t *testing.T) {
-	_, err := New("nonexistent")
+func TestNew_missing(t *testing.T) {
+	_, err := New("/nonexistent/path/to/prompt.md")
 	if err == nil {
-		t.Fatal("expected error for unknown reviewer")
-	}
-	if !strings.Contains(err.Error(), "nonexistent") {
-		t.Errorf("error should mention the unknown name, got: %v", err)
+		t.Fatal("expected error for missing prompt file")
 	}
 }
 
 func TestBuildPrompt(t *testing.T) {
-	r, err := New("security")
+	path := tempPrompt(t, "security.md", "check for vulnerabilities")
+	r, err := New(path)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -55,7 +75,8 @@ func TestBuildPrompt(t *testing.T) {
 }
 
 func TestBuildPrompt_order(t *testing.T) {
-	r, _ := New("security")
+	path := tempPrompt(t, "security.md", "check for vulnerabilities")
+	r, _ := New(path)
 	diff := "some diff"
 	prompt := r.buildPrompt(diff)
 
@@ -69,7 +90,7 @@ func TestBuildPrompt_order(t *testing.T) {
 }
 
 func TestReview_issues(t *testing.T) {
-	r := Reviewer{Name: "security", Prompt: "check security"}
+	r := Reviewer{Path: "security", Prompt: "check security"}
 	a := &fakeAssistant{fn: func(string) *exec.Cmd {
 		return echoCmd(`[{"severity":"HIGH","title":"SQL injection","location":"db.go:10","description":"User input in query."}]`)
 	}}
@@ -93,7 +114,7 @@ func TestReview_issues(t *testing.T) {
 }
 
 func TestReview_empty(t *testing.T) {
-	r := Reviewer{Name: "security", Prompt: "check security"}
+	r := Reviewer{Path: "security", Prompt: "check security"}
 	a := &fakeAssistant{fn: func(string) *exec.Cmd { return echoCmd("[]") }}
 
 	issues, err := r.review("diff", a)
@@ -106,7 +127,7 @@ func TestReview_empty(t *testing.T) {
 }
 
 func TestReview_invalidJSON(t *testing.T) {
-	r := Reviewer{Name: "security", Prompt: "check security"}
+	r := Reviewer{Path: "security", Prompt: "check security"}
 	a := &fakeAssistant{fn: func(string) *exec.Cmd { return echoCmd("not json") }}
 
 	_, err := r.review("diff", a)
@@ -129,8 +150,8 @@ func echoCmd(output string) *exec.Cmd { return exec.Command("echo", output) }
 func failCmd() *exec.Cmd              { return exec.Command("false") }
 
 func TestReview(t *testing.T) {
-	sec, _ := New("security")
-	tests, _ := New("tests")
+	sec := Reviewer{Path: "security", Prompt: "check security"}
+	tests := Reviewer{Path: "tests", Prompt: "check tests"}
 
 	a := &fakeAssistant{fn: func(string) *exec.Cmd {
 		return echoCmd(`[{"severity":"HIGH","title":"issue","location":"f.go:1","description":"bad"}]`)
@@ -144,17 +165,17 @@ func TestReview(t *testing.T) {
 		t.Fatalf("got %d issues, want 2", len(issues))
 	}
 
-	reviewerNames := map[string]bool{}
+	names := map[string]bool{}
 	for _, f := range issues {
-		reviewerNames[f.Reviewer] = true
+		names[f.Reviewer] = true
 	}
-	if !reviewerNames["security"] || !reviewerNames["tests"] {
-		t.Errorf("expected issues from both reviewers, got: %v", reviewerNames)
+	if !names["security"] || !names["tests"] {
+		t.Errorf("expected issues from both reviewers, got: %v", names)
 	}
 }
 
 func TestReview_promptError(t *testing.T) {
-	sec, _ := New("security")
+	sec := Reviewer{Path: "security", Prompt: "check security"}
 	a := &fakeAssistant{fn: func(string) *exec.Cmd { return failCmd() }}
 
 	issues, errs := Review([]Reviewer{sec}, "diff", a)
@@ -167,8 +188,8 @@ func TestReview_promptError(t *testing.T) {
 }
 
 func TestReview_partialFailure(t *testing.T) {
-	ok := Reviewer{Name: "ok", Prompt: "ok"}
-	bad := Reviewer{Name: "bad", Prompt: "bad"}
+	ok := Reviewer{Path: "ok", Prompt: "ok"}
+	bad := Reviewer{Path: "bad", Prompt: "bad"}
 
 	a := &fakeAssistant{fn: func(prompt string) *exec.Cmd {
 		if strings.Contains(prompt, "bad") {
@@ -190,47 +211,117 @@ func TestReview_partialFailure(t *testing.T) {
 }
 
 func TestResolve(t *testing.T) {
-	reviewers, err := resolve("security,tests")
+	secPath := tempPrompt(t, "security.md", "sec")
+	testsPath := tempPrompt(t, "tests.md", "tests")
+
+	reviewers, err := resolve(secPath + "," + testsPath)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if len(reviewers) != 2 {
 		t.Fatalf("got %d reviewers, want 2", len(reviewers))
 	}
-	if reviewers[0].Name != "security" {
-		t.Errorf("got %q, want %q", reviewers[0].Name, "security")
+	if reviewers[0].Path != secPath {
+		t.Errorf("got %q, want %q", reviewers[0].Path, secPath)
 	}
-	if reviewers[1].Name != "tests" {
-		t.Errorf("got %q, want %q", reviewers[1].Name, "tests")
+	if reviewers[1].Path != testsPath {
+		t.Errorf("got %q, want %q", reviewers[1].Path, testsPath)
 	}
 }
 
 func TestResolve_empty(t *testing.T) {
-	reviewers, err := resolve("")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if reviewers != nil {
-		t.Errorf("expected nil for empty input, got %v", reviewers)
+	_, err := resolve("")
+	if err == nil {
+		t.Fatal("expected error for empty input")
 	}
 }
 
-func TestResolve_unknown(t *testing.T) {
-	_, err := resolve("security,bogus")
+func TestResolve_missing(t *testing.T) {
+	path := tempPrompt(t, "security.md", "sec")
+	_, err := resolve(path + ",/nonexistent/bogus.md")
 	if err == nil {
-		t.Fatal("expected error for unknown reviewer")
+		t.Fatal("expected error for missing prompt file")
 	}
 	if !strings.Contains(err.Error(), "bogus") {
-		t.Errorf("error should mention the unknown name, got: %v", err)
+		t.Errorf("error should mention the missing path, got: %v", err)
 	}
 }
 
 func TestResolve_whitespace(t *testing.T) {
-	reviewers, err := resolve("security, tests")
+	secPath := tempPrompt(t, "security.md", "sec")
+	testsPath := tempPrompt(t, "tests.md", "tests")
+
+	reviewers, err := resolve(secPath + ", " + testsPath)
 	if err != nil {
 		t.Fatalf("unexpected error with whitespace: %v", err)
 	}
 	if len(reviewers) != 2 {
 		t.Fatalf("got %d reviewers, want 2", len(reviewers))
+	}
+}
+
+func TestFetchPrompt(t *testing.T) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("remote prompt content"))
+	}))
+	defer srv.Close()
+
+	swapHTTPClient(t, srv.Client())
+
+	content, err := fetchPrompt(srv.URL + "/prompt/security.md")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if content != "remote prompt content" {
+		t.Errorf("got %q, want %q", content, "remote prompt content")
+	}
+}
+
+func TestFetchPrompt_notFound(t *testing.T) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.NotFound(w, r)
+	}))
+	defer srv.Close()
+
+	swapHTTPClient(t, srv.Client())
+
+	_, err := fetchPrompt(srv.URL + "/missing.md")
+	if err == nil {
+		t.Fatal("expected error for 404")
+	}
+	if !strings.Contains(err.Error(), "404") {
+		t.Errorf("error should mention status code, got: %v", err)
+	}
+}
+
+func TestNew_remoteURL(t *testing.T) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("remote prompt"))
+	}))
+	defer srv.Close()
+
+	swapHTTPClient(t, srv.Client())
+
+	url := srv.URL + "/prompt/security.md"
+	r, err := New(url)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if r.Path != url {
+		t.Errorf("got path %q, want %q", r.Path, url)
+	}
+	if r.Prompt != "remote prompt" {
+		t.Errorf("got prompt %q, want %q", r.Prompt, "remote prompt")
+	}
+}
+
+func TestReadPrompt_local(t *testing.T) {
+	path := tempPrompt(t, "test.md", "local content")
+	content, err := readPrompt(path)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if content != "local content" {
+		t.Errorf("got %q, want %q", content, "local content")
 	}
 }

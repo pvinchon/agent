@@ -3,13 +3,25 @@ package main
 import (
 	"flag"
 	"os"
+	"path/filepath"
 	"testing"
 )
 
+func tempPrompt(t *testing.T, name, content string) string {
+	t.Helper()
+	p := filepath.Join(t.TempDir(), name)
+	if err := os.WriteFile(p, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+	return p
+}
+
 func TestReviewFlags(t *testing.T) {
+	secPath := tempPrompt(t, "security.md", "sec")
+
 	fs := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
 	mustReviewers, mustAssistant, resolveLog := reviewFlags(fs)
-	fs.Parse([]string{"--reviewers=security", "--assistant=claude"})
+	fs.Parse([]string{"--reviewers=" + secPath, "--assistant=claude"})
 
 	if mustReviewers == nil {
 		t.Fatal("expected non-nil mustReviewers")
@@ -60,9 +72,11 @@ func TestFixFlags(t *testing.T) {
 }
 
 func TestLoopFlags(t *testing.T) {
+	secPath := tempPrompt(t, "security.md", "sec")
+
 	fs := flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
 	mustReviewers, mustReviewAssistant, mustFixAssistant, resolveLog, maxAttempts := loopFlags(fs)
-	fs.Parse([]string{"--reviewers=security", "--assistant-for-review=claude", "--assistant-for-fix=copilot", "--max-attempts=3"})
+	fs.Parse([]string{"--reviewers=" + secPath, "--assistant-for-review=claude", "--assistant-for-fix=copilot", "--max-attempts=3"})
 
 	if mustReviewers == nil {
 		t.Fatal("expected non-nil mustReviewers")

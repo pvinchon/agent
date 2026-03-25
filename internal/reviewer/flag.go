@@ -9,14 +9,14 @@ import (
 // FlagSet registers a --reviewers flag on fs and returns a function that
 // resolves the chosen reviewers after fs.Parse() has been called.
 func FlagSet(fs *flag.FlagSet) func() []Reviewer {
-	names := fs.String("reviewers", "", "Comma-separated list of reviewers to use: "+reviewerNames)
+	sources := fs.String("reviewers", "", "Comma-separated reviewer prompt sources (file path or https:// URL)")
 	return func() []Reviewer {
-		if *names == "" {
+		if *sources == "" {
 			fs.Usage()
 			fmt.Fprintln(os.Stderr, "error: --reviewers is required")
 			os.Exit(2)
 		}
-		r, err := resolve(*names)
+		r, err := resolve(*sources)
 		if err != nil {
 			fs.Usage()
 			fmt.Fprintln(os.Stderr, "error:", err)
